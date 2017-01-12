@@ -123,7 +123,12 @@ func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
 		return nil, err
 	}
 
-	if len(msgs) > 1 {
+	switch len(msgs) {
+	case 0:
+		return nil, os.ErrNotExist
+	case 1:
+		break
+	default:
 		return nil, errMultipleMessages
 	}
 

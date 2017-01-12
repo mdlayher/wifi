@@ -1,5 +1,15 @@
 package wifi
 
+import (
+	"errors"
+)
+
+var (
+	// errNotStation is returned when attempting to query station info for
+	// an interface which is not a station.
+	errNotStation = errors.New("interface is not a station")
+)
+
 // A Client is a type which can access WiFi device actions and statistics
 // using operating system-specific operations.
 type Client struct {
@@ -31,6 +41,10 @@ func (c *Client) Interfaces() ([]*Interface, error) {
 // StationInfo retrieves statistics about a WiFi interface operating in
 // station mode.
 func (c *Client) StationInfo(ifi *Interface) (*StationInfo, error) {
+	if ifi.Type != InterfaceTypeStation {
+		return nil, errNotStation
+	}
+
 	return c.c.StationInfo(ifi)
 }
 

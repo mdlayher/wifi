@@ -94,7 +94,7 @@ func TestLinux_clientInterfacesOK(t *testing.T) {
 	}
 }
 
-func TestLinux_clientStationInfoIsNotExist(t *testing.T) {
+func TestLinux_clientStationInfoMissingAttributeIsNotExist(t *testing.T) {
 	// One message without station info attribute
 	msgs := []genetlink.Message{{
 		Header: genetlink.Header{
@@ -102,6 +102,19 @@ func TestLinux_clientStationInfoIsNotExist(t *testing.T) {
 		},
 	}}
 	c := testClient(t, msgs, nil)
+
+	_, err := c.StationInfo(&Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	})
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected is not exist, got: %v", err)
+	}
+}
+
+func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
+	// No messages
+	c := testClient(t, nil, nil)
 
 	_, err := c.StationInfo(&Interface{
 		Index:        1,
