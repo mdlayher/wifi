@@ -18,6 +18,11 @@ func New() (*Client, error) {
 	}, nil
 }
 
+// Close releases resources used by a Client.
+func (c *Client) Close() error {
+	return c.c.Close()
+}
+
 // Interfaces returns a list of the system's WiFi network interfaces.
 func (c *Client) Interfaces() ([]*Interface, error) {
 	return c.c.Interfaces()
@@ -31,6 +36,7 @@ func (c *Client) StationInfo(ifi *Interface) (*StationInfo, error) {
 
 // An osClient is the operating system-specific implementation of Client.
 type osClient interface {
+	Close() error
 	Interfaces() ([]*Interface, error)
 	StationInfo(ifi *Interface) (*StationInfo, error)
 }

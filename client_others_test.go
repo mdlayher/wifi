@@ -24,4 +24,9 @@ func TestOthers_clientUnimplemented(t *testing.T) {
 		t.Fatalf("unexpected error during c.StationInfo\n- want: %v\n-  got: %v",
 			want, got)
 	}
+
+	if got := c.Close(); want != got {
+		t.Fatalf("unexpected error during c.Close:\n- want: %v\n-  got: %v",
+			want, got)
+	}
 }

@@ -250,6 +250,8 @@ type testGENL struct {
 	precheck func(m genetlink.Message, family uint16, flags netlink.HeaderFlags)
 }
 
+func (g *testGENL) Close() error { return nil }
+
 func (g *testGENL) GetFamily(name string) (genetlink.Family, error) {
 	return g.family, nil
 }
