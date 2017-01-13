@@ -2,12 +2,19 @@ package wifi
 
 import (
 	"errors"
+	"fmt"
+	"runtime"
 )
 
 var (
 	// errNotStation is returned when attempting to query station info for
 	// an interface which is not a station.
 	errNotStation = errors.New("interface is not a station")
+
+	// errUnimplemented is returned by all functions on platforms that
+	// do not have package wifi implemented.
+	errUnimplemented = fmt.Errorf("package wifi not implemented on %s/%s",
+		runtime.GOOS, runtime.GOARCH)
 )
 
 // A Client is a type which can access WiFi device actions and statistics

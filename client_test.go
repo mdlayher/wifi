@@ -70,6 +70,9 @@ func mustNew(t *testing.T) *Client {
 		if os.IsNotExist(err) {
 			t.Skip("wifi data not available, skipping")
 		}
+		if err == errUnimplemented {
+			t.Skip(err)
+		}
 
 		t.Fatalf("failed to access wifi data: %v", err)
 	}

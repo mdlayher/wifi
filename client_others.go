@@ -2,18 +2,6 @@
 
 package wifi
 
-import (
-	"fmt"
-	"runtime"
-)
-
-var (
-	// errUnimplemented is returned by all functions on platforms that
-	// do not have package wifi implemented.
-	errUnimplemented = fmt.Errorf("package wifi not implemented on %s/%s",
-		runtime.GOOS, runtime.GOARCH)
-)
-
 var _ osClient = &client{}
 
 // A conn is the no-op implementation of a netlink sockets connection.
