@@ -292,7 +292,7 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 		case nl80211.BssBssid:
 			b.BSSID = net.HardwareAddr(a.Data)
 		case nl80211.BssFrequency:
-			b.Frequency = nlenc.Uint32(a.Data)
+			b.Frequency = int(nlenc.Uint32(a.Data))
 		case nl80211.BssBeaconInterval:
 			// Raw value is in "Time Units (TU)".  See:
 			// https://en.wikipedia.org/wiki/Beacon_frame
@@ -368,23 +368,23 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 			// * @NL80211_STA_INFO_INACTIVE_TIME: time since last activity (u32, msecs)
 			info.Inactive = time.Duration(nlenc.Uint32(a.Data)) * time.Millisecond
 		case nl80211.StaInfoRxBytes64:
-			info.ReceivedBytes = nlenc.Uint64(a.Data)
+			info.ReceivedBytes = int(nlenc.Uint64(a.Data))
 		case nl80211.StaInfoTxBytes64:
-			info.TransmittedBytes = nlenc.Uint64(a.Data)
+			info.TransmittedBytes = int(nlenc.Uint64(a.Data))
 		case nl80211.StaInfoSignal:
 			// Converted into the typical negative strength format
 			//  * @NL80211_STA_INFO_SIGNAL: signal strength of last received PPDU (u8, dBm)
 			info.Signal = int(a.Data[0]) - math.MaxUint8
 		case nl80211.StaInfoRxPackets:
-			info.ReceivedPackets = nlenc.Uint32(a.Data)
+			info.ReceivedPackets = int(nlenc.Uint32(a.Data))
 		case nl80211.StaInfoTxPackets:
-			info.TransmittedPackets = nlenc.Uint32(a.Data)
+			info.TransmittedPackets = int(nlenc.Uint32(a.Data))
 		case nl80211.StaInfoTxRetries:
-			info.TransmitRetries = nlenc.Uint32(a.Data)
+			info.TransmitRetries = int(nlenc.Uint32(a.Data))
 		case nl80211.StaInfoTxFailed:
-			info.TransmitFailed = nlenc.Uint32(a.Data)
+			info.TransmitFailed = int(nlenc.Uint32(a.Data))
 		case nl80211.StaInfoBeaconLoss:
-			info.BeaconLoss = nlenc.Uint32(a.Data)
+			info.BeaconLoss = int(nlenc.Uint32(a.Data))
 		case nl80211.StaInfoRxBitrate, nl80211.StaInfoTxBitrate:
 			rate, err := parseRateInfo(a.Data)
 			if err != nil {
@@ -405,10 +405,10 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 		// If the 64-bit counters appear later in the slice, they will overwrite
 		// these values.
 		if info.ReceivedBytes == 0 && a.Type == nl80211.StaInfoRxBytes {
-			info.ReceivedBytes = uint64(nlenc.Uint32(a.Data))
+			info.ReceivedBytes = int(nlenc.Uint32(a.Data))
 		}
 		if info.TransmittedBytes == 0 && a.Type == nl80211.StaInfoTxBytes {
-			info.TransmittedBytes = uint64(nlenc.Uint32(a.Data))
+			info.TransmittedBytes = int(nlenc.Uint32(a.Data))
 		}
 	}
 

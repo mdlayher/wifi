@@ -103,16 +103,16 @@ type StationInfo struct {
 	Inactive time.Duration
 
 	// The number of bytes received by this station.
-	ReceivedBytes uint64
+	ReceivedBytes int
 
 	// The number of bytes transmitted by this station.
-	TransmittedBytes uint64
+	TransmittedBytes int
 
 	// The number of packets received by this station.
-	ReceivedPackets uint32
+	ReceivedPackets int
 
 	// The number of packets transmitted by this station.
-	TransmittedPackets uint32
+	TransmittedPackets int
 
 	// The current data receive bitrate, in bits/second.
 	ReceiveBitrate int
@@ -124,13 +124,13 @@ type StationInfo struct {
 	Signal int
 
 	// The number of times the station has had to retry while sending a packet.
-	TransmitRetries uint32
+	TransmitRetries int
 
 	// The number of times a packet transmission failed.
-	TransmitFailed uint32
+	TransmitFailed int
 
 	// The number of times a beacon loss was detected.
-	BeaconLoss uint32
+	BeaconLoss int
 }
 
 // A BSS is an 802.11 basic service set.  It contains information about a wireless
@@ -145,7 +145,7 @@ type BSS struct {
 	BSSID net.HardwareAddr
 
 	// The frequency used by the BSS, in MHz.
-	Frequency uint32
+	Frequency int
 
 	// The interval between beacon transmissions for this BSS.
 	BeaconInterval time.Duration
