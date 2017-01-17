@@ -3,6 +3,7 @@
 package wifi
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"math"
@@ -94,12 +95,165 @@ func TestLinux_clientInterfacesOK(t *testing.T) {
 	}
 }
 
+func TestLinux_clientBSSMissingBSSAttributeIsNotExist(t *testing.T) {
+	// One message without BSS attribute
+	msgs := []genetlink.Message{{
+		Header: genetlink.Header{
+			Command: nl80211.CmdNewScanResults,
+		},
+		Data: mustMarshalAttributes([]netlink.Attribute{{
+			Type: nl80211.AttrIfindex,
+			Data: nlenc.Uint32Bytes(1),
+		}}),
+	}}
+	c := testClient(t, msgs, nil)
+
+	_, err := c.BSS(&Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	})
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected is not exist, got: %v", err)
+	}
+}
+
+func TestLinux_clientBSSMissingBSSStatusAttributeIsNotExist(t *testing.T) {
+	msgs := []genetlink.Message{{
+		Header: genetlink.Header{
+			Command: nl80211.CmdNewScanResults,
+		},
+		// BSS attribute, but no nested status attribute for the "active" BSS
+		Data: mustMarshalAttributes([]netlink.Attribute{{
+			Type: nl80211.AttrBss,
+			Data: mustMarshalAttributes([]netlink.Attribute{{
+				Type: nl80211.BssBssid,
+				Data: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+			}}),
+		}}),
+	}}
+	c := testClient(t, msgs, nil)
+
+	_, err := c.BSS(&Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	})
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected is not exist, got: %v", err)
+	}
+}
+
+func TestLinux_clientBSSNoMessagesIsNotExist(t *testing.T) {
+	// No messages
+	c := testClient(t, nil, nil)
+
+	_, err := c.BSS(&Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	})
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected is not exist, got: %v", err)
+	}
+}
+
+func TestLinux_clientBSSOKSkipMissingStatus(t *testing.T) {
+	want := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+
+	msgs := []genetlink.Message{
+		// Multiple messages, but only second one has BSS status, so the
+		// others should be ignored
+		{
+			Header: genetlink.Header{
+				Command: nl80211.CmdNewScanResults,
+			},
+			Data: mustMarshalAttributes([]netlink.Attribute{{
+				Type: nl80211.AttrBss,
+				// Does not contain BSS information and status
+				Data: mustMarshalAttributes([]netlink.Attribute{{
+					Type: nl80211.BssBssid,
+					Data: net.HardwareAddr{0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa},
+				}}),
+			}}),
+		},
+		{
+			Header: genetlink.Header{
+				Command: nl80211.CmdNewScanResults,
+			},
+			Data: mustMarshalAttributes([]netlink.Attribute{{
+				Type: nl80211.AttrBss,
+				// Contains BSS information and status
+				Data: mustMarshalAttributes([]netlink.Attribute{
+					{
+						Type: nl80211.BssBssid,
+						Data: want,
+					},
+					{
+						Type: nl80211.BssStatus,
+						Data: nlenc.Uint32Bytes(uint32(BSSStatusAssociated)),
+					},
+				}),
+			}}),
+		},
+	}
+	c := testClient(t, msgs, nil)
+
+	bss, err := c.BSS(&Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := bss.BSSID; !bytes.Equal(want, got) {
+		t.Fatalf("unexpected BSS BSSID:\n- want: %#v\n-  got: %#v",
+			want, got)
+	}
+}
+
+func TestLinux_clientBSSOK(t *testing.T) {
+	want := &BSS{
+		SSID:           "Hello, 世界",
+		BSSID:          net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		Frequency:      2492,
+		BeaconInterval: 100 * 1024 * time.Microsecond,
+		LastSeen:       10 * time.Second,
+		Status:         BSSStatusAssociated,
+	}
+
+	ifi := &Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	}
+
+	msgs := mustMessages(t, nl80211.CmdNewScanResults, want)
+
+	c := testClient(t, msgs, &check{
+		Command: nl80211.CmdGetScan,
+		Flags:   netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump,
+		Attrs:   ifi.idAttrs(),
+	})
+
+	got, err := c.BSS(ifi)
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("unexpected BSS:\n- want: %v\n-  got: %v",
+			want, got)
+	}
+}
+
 func TestLinux_clientStationInfoMissingAttributeIsNotExist(t *testing.T) {
 	// One message without station info attribute
 	msgs := []genetlink.Message{{
 		Header: genetlink.Header{
 			Command: nl80211.CmdNewStation,
 		},
+		Data: mustMarshalAttributes([]netlink.Attribute{{
+			Type: nl80211.AttrIfindex,
+			Data: nlenc.Uint32Bytes(1),
+		}}),
 	}}
 	c := testClient(t, msgs, nil)
 
@@ -169,7 +323,7 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 	c := testClient(t, msgs, &check{
 		Command: nl80211.CmdGetStation,
 		Flags:   netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump,
-		Attrs:   ifi.stationInfoAttrs(),
+		Attrs:   ifi.idAttrs(),
 	})
 
 	got, err := c.StationInfo(ifi)
@@ -289,6 +443,17 @@ func (g *testGENL) Execute(m genetlink.Message, family uint16, flags netlink.Hea
 
 // Helper functions for converting types back into their raw attribute formats
 
+func marshalIEs(ies []ie) []byte {
+	buf := bytes.NewBuffer(nil)
+	for _, ie := range ies {
+		buf.WriteByte(ie.ID)
+		buf.WriteByte(uint8(len(ie.Data)))
+		buf.Write(ie.Data)
+	}
+
+	return buf.Bytes()
+}
+
 func mustMarshalAttributes(attrs []netlink.Attribute) []byte {
 	b, err := netlink.MarshalAttributes(attrs)
 	if err != nil {
@@ -304,6 +469,7 @@ type attributeser interface {
 
 var (
 	_ attributeser = &Interface{}
+	_ attributeser = &BSS{}
 	_ attributeser = &StationInfo{}
 )
 
@@ -316,6 +482,29 @@ func (ifi *Interface) attributes() []netlink.Attribute {
 		{Type: nl80211.AttrIftype, Data: nlenc.Uint32Bytes(uint32(ifi.Type))},
 		{Type: nl80211.AttrWdev, Data: nlenc.Uint64Bytes(uint64(ifi.Device))},
 		{Type: nl80211.AttrWiphyFreq, Data: nlenc.Uint32Bytes(uint32(ifi.Frequency))},
+	}
+}
+
+func (b *BSS) attributes() []netlink.Attribute {
+	return []netlink.Attribute{
+		// TODO(mdlayher): return more attributes for validation?
+		{
+			Type: nl80211.AttrBss,
+			Data: mustMarshalAttributes([]netlink.Attribute{
+				{Type: nl80211.BssBssid, Data: b.BSSID},
+				{Type: nl80211.BssFrequency, Data: nlenc.Uint32Bytes(b.Frequency)},
+				{Type: nl80211.BssBeaconInterval, Data: nlenc.Uint16Bytes(uint16(b.BeaconInterval / 1024 / time.Microsecond))},
+				{Type: nl80211.BssSeenMsAgo, Data: nlenc.Uint32Bytes(uint32(b.LastSeen / time.Millisecond))},
+				{Type: nl80211.BssStatus, Data: nlenc.Uint32Bytes(uint32(b.Status))},
+				{
+					Type: nl80211.BssInformationElements,
+					Data: marshalIEs([]ie{{
+						ID:   ieSSID,
+						Data: []byte(b.SSID),
+					}}),
+				},
+			}),
+		},
 	}
 }
 
@@ -368,6 +557,8 @@ func mustMessages(t *testing.T, command uint8, want interface{}) []genetlink.Mes
 		for _, x := range xs {
 			as = append(as, x)
 		}
+	case *BSS:
+		as = append(as, xs)
 	case *StationInfo:
 		as = append(as, xs)
 	default:

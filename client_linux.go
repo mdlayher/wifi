@@ -3,11 +3,13 @@
 package wifi
 
 import (
+	"bytes"
 	"errors"
 	"math"
 	"net"
 	"os"
 	"time"
+	"unicode/utf8"
 
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/genetlink"
@@ -96,10 +98,40 @@ func (c *client) Interfaces() ([]*Interface, error) {
 	return parseInterfaces(msgs)
 }
 
+// BSS requests that nl80211 return the BSS for the specified Interface.
+func (c *client) BSS(ifi *Interface) (*BSS, error) {
+	b, err := netlink.MarshalAttributes(ifi.idAttrs())
+	if err != nil {
+		return nil, err
+	}
+
+	// Ask nl80211 to retrieve BSS information for the interface specified
+	// by its attributes
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdGetScan,
+			Version: c.familyVersion,
+		},
+		Data: b,
+	}
+
+	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	msgs, err := c.c.Execute(req, c.familyID, flags)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.checkMessages(msgs, nl80211.CmdNewScanResults); err != nil {
+		return nil, err
+	}
+
+	return parseBSS(msgs)
+}
+
 // StationInfo requests that nl80211 return station info for the specified
 // Interface.
 func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
-	b, err := netlink.MarshalAttributes(ifi.stationInfoAttrs())
+	b, err := netlink.MarshalAttributes(ifi.idAttrs())
 	if err != nil {
 		return nil, err
 	}
@@ -176,9 +208,9 @@ func parseInterfaces(msgs []genetlink.Message) ([]*Interface, error) {
 	return ifis, nil
 }
 
-// stationInfoAttrs returns the netlink attributes required from an Interface
-// to retrieve a StationInfo.
-func (ifi *Interface) stationInfoAttrs() []netlink.Attribute {
+// idAttrs returns the netlink attributes required from an Interface to retrieve
+// more data about it.
+func (ifi *Interface) idAttrs() []netlink.Attribute {
 	return []netlink.Attribute{
 		{
 			Type: nl80211.AttrIfindex,
@@ -211,6 +243,80 @@ func (ifi *Interface) parseAttributes(attrs []netlink.Attribute) error {
 			ifi.Device = int(nlenc.Uint64(a.Data))
 		case nl80211.AttrWiphyFreq:
 			ifi.Frequency = int(nlenc.Uint32(a.Data))
+		}
+	}
+
+	return nil
+}
+
+// parseBSS parses a single BSS with a status attribute from nl80211 BSS messages.
+func parseBSS(msgs []genetlink.Message) (*BSS, error) {
+	for _, m := range msgs {
+		attrs, err := netlink.UnmarshalAttributes(m.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, a := range attrs {
+			if a.Type != nl80211.AttrBss {
+				continue
+			}
+
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return nil, err
+			}
+
+			// The BSS which is associated with an interface will have a status
+			// attribute
+			if !attrsContain(nattrs, nl80211.BssStatus) {
+				continue
+			}
+
+			var bss BSS
+			if err := (&bss).parseAttributes(nattrs); err != nil {
+				return nil, err
+			}
+
+			return &bss, nil
+		}
+	}
+
+	return nil, os.ErrNotExist
+}
+
+// parseAttributes parses netlink attributes into a BSS's fields.
+func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
+	for _, a := range attrs {
+		switch a.Type {
+		case nl80211.BssBssid:
+			b.BSSID = net.HardwareAddr(a.Data)
+		case nl80211.BssFrequency:
+			b.Frequency = nlenc.Uint32(a.Data)
+		case nl80211.BssBeaconInterval:
+			// Raw value is in "Time Units (TU)".  See:
+			// https://en.wikipedia.org/wiki/Beacon_frame
+			b.BeaconInterval = time.Duration(nlenc.Uint16(a.Data)) * 1024 * time.Microsecond
+		case nl80211.BssSeenMsAgo:
+			// * @NL80211_BSS_SEEN_MS_AGO: age of this BSS entry in ms
+			b.LastSeen = time.Duration(nlenc.Uint32(a.Data)) * time.Millisecond
+		case nl80211.BssStatus:
+			// NOTE: BSSStatus copies the ordering of nl80211's BSS status
+			// constants.  This may not be the case on other operating systems.
+			b.Status = BSSStatus(nlenc.Uint32(a.Data))
+		case nl80211.BssInformationElements:
+			ies, err := parseIEs(a.Data)
+			if err != nil {
+				return err
+			}
+
+			// TODO(mdlayher): return more IEs if they end up being generally useful
+			for _, ie := range ies {
+				switch ie.ID {
+				case ieSSID:
+					b.SSID = decodeSSID(ie.Data)
+				}
+			}
 		}
 	}
 
@@ -343,6 +449,32 @@ func parseRateInfo(b []byte) (*rateInfo, error) {
 	info.Bitrate *= 100 * 1000
 
 	return &info, nil
+}
+
+// attrsContain checks if a slice of netlink attributes contains an attribute
+// with the specified type.
+func attrsContain(attrs []netlink.Attribute, typ uint16) bool {
+	for _, a := range attrs {
+		if a.Type == typ {
+			return true
+		}
+	}
+
+	return false
+}
+
+// decodeSSID safely parses a byte slice into UTF-8 runes, and returns the
+// resulting string from the runes.
+func decodeSSID(b []byte) string {
+	buf := bytes.NewBuffer(nil)
+	for len(b) > 0 {
+		r, size := utf8.DecodeRune(b)
+		b = b[size:]
+
+		buf.WriteRune(r)
+	}
+
+	return buf.String()
 }
 
 var _ genl = &sysGENL{}

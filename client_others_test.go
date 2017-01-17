@@ -20,6 +20,11 @@ func TestOthers_clientUnimplemented(t *testing.T) {
 			want, got)
 	}
 
+	if _, got := c.BSS(nil); want != got {
+		t.Fatalf("unexpected error during c.BSS\n- want: %v\n-  got: %v",
+			want, got)
+	}
+
 	if _, got := c.StationInfo(nil); want != got {
 		t.Fatalf("unexpected error during c.StationInfo\n- want: %v\n-  got: %v",
 			want, got)

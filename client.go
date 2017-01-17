@@ -45,6 +45,11 @@ func (c *Client) Interfaces() ([]*Interface, error) {
 	return c.c.Interfaces()
 }
 
+// BSS retrieves the BSS associated with a WiFi interface.
+func (c *Client) BSS(ifi *Interface) (*BSS, error) {
+	return c.c.BSS(ifi)
+}
+
 // StationInfo retrieves statistics about a WiFi interface operating in
 // station mode.
 func (c *Client) StationInfo(ifi *Interface) (*StationInfo, error) {
@@ -59,5 +64,6 @@ func (c *Client) StationInfo(ifi *Interface) (*StationInfo, error) {
 type osClient interface {
 	Close() error
 	Interfaces() ([]*Interface, error)
+	BSS(ifi *Interface) (*BSS, error)
 	StationInfo(ifi *Interface) (*StationInfo, error)
 }
