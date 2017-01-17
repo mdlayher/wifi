@@ -95,7 +95,9 @@ func execN(wg *sync.WaitGroup, c *Client, n int, expect []string) {
 			}
 
 			if _, err := c.StationInfo(ifi); err != nil {
-				panic(fmt.Sprintf("failed to retrieve station info for device %s: %v", ifi.Name, err))
+				if !os.IsNotExist(err) {
+					panic(fmt.Sprintf("failed to retrieve station info for device %s: %v", ifi.Name, err))
+				}
 			}
 
 			names[ifi.Name]++
