@@ -337,6 +337,23 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 	}
 }
 
+func TestLinux_initClientErrorCloseConn(t *testing.T) {
+	// Assume that nl80211 does not exist on this system.
+	// The genetlink Conn should be closed to avoid leaking file descriptors.
+	g := &testGENL{
+		err: os.ErrNotExist,
+	}
+
+	if _, err := initClient(g); err == nil {
+		t.Fatal("no error occurred, but expected one")
+	}
+
+	if want, got := true, g.closed; want != got {
+		t.Fatalf("unexpected genetlink conn closed:\n- want: %v\n-  got: %v",
+			want, got)
+	}
+}
+
 type check struct {
 	Command uint8
 	Flags   netlink.HeaderFlags
@@ -413,14 +430,19 @@ var _ genl = &testGENL{}
 type testGENL struct {
 	family   genetlink.Family
 	messages []genetlink.Message
+	closed   bool
+	err      error
 
 	precheck func(m genetlink.Message, family uint16, flags netlink.HeaderFlags)
 }
 
-func (g *testGENL) Close() error { return nil }
+func (g *testGENL) Close() error {
+	g.closed = true
+	return nil
+}
 
 func (g *testGENL) GetFamily(name string) (genetlink.Family, error) {
-	return g.family, nil
+	return g.family, g.err
 }
 
 func (g *testGENL) Execute(m genetlink.Message, family uint16, flags netlink.HeaderFlags) ([]genetlink.Message, error) {
