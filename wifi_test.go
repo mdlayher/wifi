@@ -5,6 +5,75 @@ import (
 	"testing"
 )
 
+func TestInterfaceTypeString(t *testing.T) {
+	tests := []struct {
+		t InterfaceType
+		s string
+	}{
+		{
+			t: InterfaceTypeUnspecified,
+			s: "unspecified",
+		},
+		{
+			t: InterfaceTypeAdHoc,
+			s: "ad-hoc",
+		},
+		{
+			t: InterfaceTypeStation,
+			s: "station",
+		},
+		{
+			t: InterfaceTypeAP,
+			s: "access point",
+		},
+		{
+			t: InterfaceTypeWDS,
+			s: "wireless distribution",
+		},
+		{
+			t: InterfaceTypeMonitor,
+			s: "monitor",
+		},
+		{
+			t: InterfaceTypeMeshPoint,
+			s: "mesh point",
+		},
+		{
+			t: InterfaceTypeP2PClient,
+			s: "P2P client",
+		},
+		{
+			t: InterfaceTypeP2PGroupOwner,
+			s: "P2P group owner",
+		},
+		{
+			t: InterfaceTypeP2PDevice,
+			s: "P2P device",
+		},
+		{
+			t: InterfaceTypeOCB,
+			s: "outside context of BSS",
+		},
+		{
+			t: InterfaceTypeNAN,
+			s: "near-me area network",
+		},
+		{
+			t: InterfaceTypeNAN + 1,
+			s: "unknown(13)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			if want, got := tt.s, tt.t.String(); want != got {
+				t.Fatalf("unexpected interface type string:\n- want: %q\n-  got: %q",
+					want, got)
+			}
+		})
+	}
+}
+
 func TestBSSStatusString(t *testing.T) {
 	tests := []struct {
 		t BSSStatus
