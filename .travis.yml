@@ -3,11 +3,10 @@ go:
   - 1.x
 os:
   - linux
-  - osx
 sudo: required
 before_install:
   - go get github.com/golang/lint/golint
-  - go get honnef.co/go/staticcheck/cmd/staticcheck
+  - go get honnef.co/go/tools/cmd/staticcheck
   - go get -d ./...
 script:
   - go build ./...
