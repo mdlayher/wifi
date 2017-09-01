@@ -5,29 +5,33 @@ package wifi
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"net"
 	"os"
 	"reflect"
+	"syscall"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/mdlayher/genetlink"
+	"github.com/mdlayher/genetlink/genltest"
 	"github.com/mdlayher/netlink"
-	"github.com/mdlayher/netlink/genetlink"
 	"github.com/mdlayher/netlink/nlenc"
 	"github.com/mdlayher/wifi/internal/nl80211"
 )
 
 func TestLinux_clientInterfacesBadResponseCommand(t *testing.T) {
-	msgs := []genetlink.Message{{
-		Header: genetlink.Header{
-			// Wrong response command
-			Command: nl80211.CmdGetInterface,
-		},
-	}}
-
-	c := testClient(t, msgs, nil)
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		return []genetlink.Message{{
+			Header: genetlink.Header{
+				// Wrong response command
+				Command: nl80211.CmdGetInterface,
+			},
+		}}, nil
+	})
 
 	want := errInvalidCommand
 	_, got := c.Interfaces()
@@ -39,15 +43,15 @@ func TestLinux_clientInterfacesBadResponseCommand(t *testing.T) {
 }
 
 func TestLinux_clientInterfacesBadResponseFamilyVersion(t *testing.T) {
-	msgs := []genetlink.Message{{
-		Header: genetlink.Header{
-			// Wrong family version
-			Command: nl80211.CmdNewInterface,
-			Version: 100,
-		},
-	}}
-
-	c := testClient(t, msgs, nil)
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		return []genetlink.Message{{
+			Header: genetlink.Header{
+				// Wrong family version
+				Command: nl80211.CmdNewInterface,
+				Version: 100,
+			},
+		}}, nil
+	})
 
 	want := errInvalidFamilyVersion
 	_, got := c.Interfaces()
@@ -77,36 +81,35 @@ func TestLinux_clientInterfacesOK(t *testing.T) {
 		},
 	}
 
-	msgs := mustMessages(t, nl80211.CmdNewInterface, want)
+	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
 
-	c := testClient(t, msgs, &check{
-		Command: nl80211.CmdGetInterface,
-		Flags:   netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump,
-	})
+	c := testClient(t, checkRequest(nl80211.CmdGetInterface, flags,
+		mustMessages(t, nl80211.CmdNewInterface, want),
+	))
 
 	got, err := c.Interfaces()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if want, got := derefInterfaces(want), derefInterfaces(got); !reflect.DeepEqual(want, got) {
-		t.Fatalf("unexpected interfaces:\n- want: %v\n-  got: %v",
-			want, got)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected interfaces (-want +got):\n%s", diff)
 	}
 }
 
 func TestLinux_clientBSSMissingBSSAttributeIsNotExist(t *testing.T) {
-	// One message without BSS attribute
-	msgs := []genetlink.Message{{
-		Header: genetlink.Header{
-			Command: nl80211.CmdNewScanResults,
-		},
-		Data: mustMarshalAttributes([]netlink.Attribute{{
-			Type: nl80211.AttrIfindex,
-			Data: nlenc.Uint32Bytes(1),
-		}}),
-	}}
-	c := testClient(t, msgs, nil)
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// One message without BSS attribute
+		return []genetlink.Message{{
+			Header: genetlink.Header{
+				Command: nl80211.CmdNewScanResults,
+			},
+			Data: mustMarshalAttributes([]netlink.Attribute{{
+				Type: nl80211.AttrIfindex,
+				Data: nlenc.Uint32Bytes(1),
+			}}),
+		}}, nil
+	})
 
 	_, err := c.BSS(&Interface{
 		Index:        1,
@@ -118,20 +121,21 @@ func TestLinux_clientBSSMissingBSSAttributeIsNotExist(t *testing.T) {
 }
 
 func TestLinux_clientBSSMissingBSSStatusAttributeIsNotExist(t *testing.T) {
-	msgs := []genetlink.Message{{
-		Header: genetlink.Header{
-			Command: nl80211.CmdNewScanResults,
-		},
-		// BSS attribute, but no nested status attribute for the "active" BSS
-		Data: mustMarshalAttributes([]netlink.Attribute{{
-			Type: nl80211.AttrBss,
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		return []genetlink.Message{{
+			Header: genetlink.Header{
+				Command: nl80211.CmdNewScanResults,
+			},
+			// BSS attribute, but no nested status attribute for the "active" BSS
 			Data: mustMarshalAttributes([]netlink.Attribute{{
-				Type: nl80211.BssBssid,
-				Data: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+				Type: nl80211.AttrBss,
+				Data: mustMarshalAttributes([]netlink.Attribute{{
+					Type: nl80211.BssBssid,
+					Data: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+				}}),
 			}}),
-		}}),
-	}}
-	c := testClient(t, msgs, nil)
+		}}, nil
+	})
 
 	_, err := c.BSS(&Interface{
 		Index:        1,
@@ -143,8 +147,11 @@ func TestLinux_clientBSSMissingBSSStatusAttributeIsNotExist(t *testing.T) {
 }
 
 func TestLinux_clientBSSNoMessagesIsNotExist(t *testing.T) {
-	// No messages
-	c := testClient(t, nil, nil)
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// No messages about the BSS at the generic netlink level.
+		// Caller will interpret this as no BSS.
+		return nil, io.EOF
+	})
 
 	_, err := c.BSS(&Interface{
 		Index:        1,
@@ -158,43 +165,44 @@ func TestLinux_clientBSSNoMessagesIsNotExist(t *testing.T) {
 func TestLinux_clientBSSOKSkipMissingStatus(t *testing.T) {
 	want := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
-	msgs := []genetlink.Message{
-		// Multiple messages, but only second one has BSS status, so the
-		// others should be ignored
-		{
-			Header: genetlink.Header{
-				Command: nl80211.CmdNewScanResults,
-			},
-			Data: mustMarshalAttributes([]netlink.Attribute{{
-				Type: nl80211.AttrBss,
-				// Does not contain BSS information and status
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		return []genetlink.Message{
+			// Multiple messages, but only second one has BSS status, so the
+			// others should be ignored
+			{
+				Header: genetlink.Header{
+					Command: nl80211.CmdNewScanResults,
+				},
 				Data: mustMarshalAttributes([]netlink.Attribute{{
-					Type: nl80211.BssBssid,
-					Data: net.HardwareAddr{0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa},
-				}}),
-			}}),
-		},
-		{
-			Header: genetlink.Header{
-				Command: nl80211.CmdNewScanResults,
-			},
-			Data: mustMarshalAttributes([]netlink.Attribute{{
-				Type: nl80211.AttrBss,
-				// Contains BSS information and status
-				Data: mustMarshalAttributes([]netlink.Attribute{
-					{
+					Type: nl80211.AttrBss,
+					// Does not contain BSS information and status
+					Data: mustMarshalAttributes([]netlink.Attribute{{
 						Type: nl80211.BssBssid,
-						Data: want,
-					},
-					{
-						Type: nl80211.BssStatus,
-						Data: nlenc.Uint32Bytes(uint32(BSSStatusAssociated)),
-					},
-				}),
-			}}),
-		},
-	}
-	c := testClient(t, msgs, nil)
+						Data: net.HardwareAddr{0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa},
+					}}),
+				}}),
+			},
+			{
+				Header: genetlink.Header{
+					Command: nl80211.CmdNewScanResults,
+				},
+				Data: mustMarshalAttributes([]netlink.Attribute{{
+					Type: nl80211.AttrBss,
+					// Contains BSS information and status
+					Data: mustMarshalAttributes([]netlink.Attribute{
+						{
+							Type: nl80211.BssBssid,
+							Data: want,
+						},
+						{
+							Type: nl80211.BssStatus,
+							Data: nlenc.Uint32Bytes(uint32(BSSStatusAssociated)),
+						},
+					}),
+				}}),
+			},
+		}, nil
+	})
 
 	bss, err := c.BSS(&Interface{
 		Index:        1,
@@ -225,13 +233,26 @@ func TestLinux_clientBSSOK(t *testing.T) {
 		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
 	}
 
-	msgs := mustMessages(t, nl80211.CmdNewScanResults, want)
+	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
 
-	c := testClient(t, msgs, &check{
-		Command: nl80211.CmdGetScan,
-		Flags:   netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump,
-		Attrs:   ifi.idAttrs(),
-	})
+	msgsFn := mustMessages(t, nl80211.CmdNewScanResults, want)
+
+	c := testClient(t, checkRequest(nl80211.CmdGetScan, flags,
+		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
+			// Also verify that the correct interface attributes are
+			// present in the request.
+			attrs, err := netlink.UnmarshalAttributes(greq.Data)
+			if err != nil {
+				t.Fatalf("failed to unmarshal attributes: %v", err)
+			}
+
+			if diff := diffNetlinkAttributes(ifi.idAttrs(), attrs); diff != "" {
+				t.Fatalf("unexpected request netlink attributes (-want +got):\n%s", diff)
+			}
+
+			return msgsFn(greq, nreq)
+		},
+	))
 
 	got, err := c.BSS(ifi)
 	if err != nil {
@@ -245,17 +266,18 @@ func TestLinux_clientBSSOK(t *testing.T) {
 }
 
 func TestLinux_clientStationInfoMissingAttributeIsNotExist(t *testing.T) {
-	// One message without station info attribute
-	msgs := []genetlink.Message{{
-		Header: genetlink.Header{
-			Command: nl80211.CmdNewStation,
-		},
-		Data: mustMarshalAttributes([]netlink.Attribute{{
-			Type: nl80211.AttrIfindex,
-			Data: nlenc.Uint32Bytes(1),
-		}}),
-	}}
-	c := testClient(t, msgs, nil)
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// One message without station info attribute
+		return []genetlink.Message{{
+			Header: genetlink.Header{
+				Command: nl80211.CmdNewStation,
+			},
+			Data: mustMarshalAttributes([]netlink.Attribute{{
+				Type: nl80211.AttrIfindex,
+				Data: nlenc.Uint32Bytes(1),
+			}}),
+		}}, nil
+	})
 
 	_, err := c.StationInfo(&Interface{
 		Index:        1,
@@ -267,8 +289,11 @@ func TestLinux_clientStationInfoMissingAttributeIsNotExist(t *testing.T) {
 }
 
 func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
-	// No messages
-	c := testClient(t, nil, nil)
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// No messages about station info at the generic netlink level.
+		// Caller will interpret this as no station info.
+		return nil, io.EOF
+	})
 
 	_, err := c.StationInfo(&Interface{
 		Index:        1,
@@ -280,10 +305,10 @@ func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
 }
 
 func TestLinux_clientStationInfoMultipleMessages(t *testing.T) {
-	// Multiple messages
-	msgs := []genetlink.Message{{}, {}}
-
-	c := testClient(t, msgs, nil)
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// Multiple messages are an error.
+		return []genetlink.Message{{}, {}}, nil
+	})
 
 	want := errMultipleMessages
 	_, got := c.StationInfo(&Interface{
@@ -318,13 +343,26 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
 	}
 
-	msgs := mustMessages(t, nl80211.CmdNewStation, want)
+	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
 
-	c := testClient(t, msgs, &check{
-		Command: nl80211.CmdGetStation,
-		Flags:   netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump,
-		Attrs:   ifi.idAttrs(),
-	})
+	msgsFn := mustMessages(t, nl80211.CmdNewStation, want)
+
+	c := testClient(t, checkRequest(nl80211.CmdGetStation, flags,
+		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
+			// Also verify that the correct interface attributes are
+			// present in the request.
+			attrs, err := netlink.UnmarshalAttributes(greq.Data)
+			if err != nil {
+				t.Fatalf("failed to unmarshal attributes: %v", err)
+			}
+
+			if diff := diffNetlinkAttributes(ifi.idAttrs(), attrs); diff != "" {
+				t.Fatalf("unexpected request netlink attributes (-want +got):\n%s", diff)
+			}
+
+			return msgsFn(greq, nreq)
+		},
+	))
 
 	got, err := c.StationInfo(ifi)
 	if err != nil {
@@ -338,129 +376,86 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 }
 
 func TestLinux_initClientErrorCloseConn(t *testing.T) {
-	// Assume that nl80211 does not exist on this system.
-	// The genetlink Conn should be closed to avoid leaking file descriptors.
-	g := &testGENL{
-		err: os.ErrNotExist,
-	}
+	c := genltest.Dial(func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// Assume that nl80211 does not exist on this system.
+		// The genetlink Conn should be closed to avoid leaking file descriptors.
+		return nil, genltest.Error(int(syscall.ENOENT))
+	})
 
-	if _, err := initClient(g); err == nil {
+	if _, err := initClient(c); err == nil {
 		t.Fatal("no error occurred, but expected one")
 	}
-
-	if want, got := true, g.closed; want != got {
-		t.Fatalf("unexpected genetlink conn closed:\n- want: %v\n-  got: %v",
-			want, got)
-	}
 }
 
-type check struct {
-	Command uint8
-	Flags   netlink.HeaderFlags
-	Attrs   []netlink.Attribute
-}
-
-func testClient(t *testing.T, messages []genetlink.Message, ch *check) *client {
-	const (
-		familyID      = 10
-		familyVersion = 1
-	)
-
-	g := &testGENL{
-		family: genetlink.Family{
-			ID:      familyID,
-			Version: familyVersion,
-			Name:    nl80211.GenlName,
-		},
-		messages: messages,
+func testClient(t *testing.T, fn genltest.Func) *client {
+	family := genetlink.Family{
+		ID:      26,
+		Name:    nl80211.GenlName,
+		Version: 1,
 	}
 
-	g.precheck = func(m genetlink.Message, family uint16, flags netlink.HeaderFlags) {
-		if want, got := familyID, int(family); want != got {
-			t.Fatalf("unexpected family ID:\n- want: %v\n-  got: %v",
-				want, got)
+	c := genltest.Dial(genltest.ServeFamily(family, func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
+		// If this function is invoked, we are calling a nl80211 function.
+		if diff := cmp.Diff(int(family.ID), int(nreq.Header.Type)); diff != "" {
+			t.Fatalf("unexpected generic netlink family ID (-want +got):\n%s", diff)
 		}
 
-		if want, got := familyVersion, int(m.Header.Version); want != got {
-			t.Fatalf("unexpected family version:\n- want: %v\n-  got: %v",
-				want, got)
+		if diff := cmp.Diff(family.Version, greq.Header.Version); diff != "" {
+			t.Fatalf("unexpected generic netlink family version (-want +got):\n%s", diff)
 		}
 
-		if ch == nil {
-			return
-		}
-		if ch.Attrs == nil {
-			ch.Attrs = make([]netlink.Attribute, 0)
-		}
-
-		if want, got := ch.Flags, flags; want != got {
-			t.Fatalf("unexpected header flags:\n- want: %s\n-  got: %s",
-				want, got)
-		}
-
-		attrs, err := netlink.UnmarshalAttributes(m.Data)
+		msgs, err := fn(greq, nreq)
 		if err != nil {
-			t.Fatalf("failed to unmarshal attributes: %v", err)
+			return nil, err
 		}
 
-		// Zero out length fields since we don't want to have to fill them out
-		// in tests
-		gotAttrs := make([]netlink.Attribute, 0, len(ch.Attrs))
-		for _, a := range attrs {
-			a.Length = 0
-			gotAttrs = append(gotAttrs, a)
+		// Do a favor for the caller by planting the correct version in each message
+		// header, as long as no version is supplied.
+		for i := range msgs {
+			if msgs[i].Header.Version == 0 {
+				msgs[i].Header.Version = family.Version
+			}
 		}
 
-		if want, got := ch.Attrs, gotAttrs; !reflect.DeepEqual(want, got) {
-			t.Fatalf("unexpected attributes:\n- want: %#v\n-  got: %#v",
-				want, got)
-		}
-	}
+		return msgs, nil
+	}))
 
-	c, err := initClient(g)
+	client, err := initClient(c)
 	if err != nil {
-		t.Fatalf("error during client init: %v", err)
+		t.Fatalf("failed to initialize test client: %v", err)
 	}
 
-	return c
+	return client
 }
 
-var _ genl = &testGENL{}
-
-type testGENL struct {
-	family   genetlink.Family
-	messages []genetlink.Message
-	closed   bool
-	err      error
-
-	precheck func(m genetlink.Message, family uint16, flags netlink.HeaderFlags)
-}
-
-func (g *testGENL) Close() error {
-	g.closed = true
-	return nil
-}
-
-func (g *testGENL) GetFamily(name string) (genetlink.Family, error) {
-	return g.family, g.err
-}
-
-func (g *testGENL) Execute(m genetlink.Message, family uint16, flags netlink.HeaderFlags) ([]genetlink.Message, error) {
-	g.precheck(m, family, flags)
-
-	// Populate response with correct version, if one isn't set
-	msgs := make([]genetlink.Message, 0, len(g.messages))
-	for _, m := range g.messages {
-		if m.Header.Version != 0 {
-			msgs = append(msgs, m)
-			continue
+func checkRequest(command uint8, flags netlink.HeaderFlags, fn genltest.Func) genltest.Func {
+	return func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
+		if want, got := command, greq.Header.Command; command != 0 && want != got {
+			return nil, fmt.Errorf("unexpected generic netlink header command: %d, want: %d", got, want)
 		}
 
-		m.Header.Version = g.family.Version
-		msgs = append(msgs, m)
+		if want, got := flags, nreq.Header.Flags; flags != 0 && want != got {
+			return nil, fmt.Errorf("unexpected generic netlink header command: %s, want: %s", got, want)
+		}
+
+		return fn(greq, nreq)
+	}
+}
+
+// diffNetlinkAttributes compares two []netlink.Attributes after zeroing their
+// length fields that make equality checks in testing difficult.
+func diffNetlinkAttributes(want, got []netlink.Attribute) string {
+	// If different lengths, diff immediately for better error output.
+	if len(want) != len(got) {
+		return cmp.Diff(want, got)
 	}
 
-	return msgs, nil
+	for i := range want {
+		want[i].Length = 0
+		got[i].Length = 0
+	}
+
+	return cmp.Diff(want, got)
 }
 
 // Helper functions for converting types back into their raw attribute formats
@@ -571,7 +566,7 @@ func bitrateAttr(bitrate int) uint32 {
 	return uint32(bitrate / 100 / 1000)
 }
 
-func mustMessages(t *testing.T, command uint8, want interface{}) []genetlink.Message {
+func mustMessages(t *testing.T, command uint8, want interface{}) genltest.Func {
 	var as []attributeser
 
 	switch xs := want.(type) {
@@ -597,14 +592,7 @@ func mustMessages(t *testing.T, command uint8, want interface{}) []genetlink.Mes
 		})
 	}
 
-	return msgs
-}
-
-func derefInterfaces(ifis []*Interface) []Interface {
-	out := make([]Interface, 0, len(ifis))
-	for _, ifi := range ifis {
-		out = append(out, *ifi)
+	return func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		return msgs, nil
 	}
-
-	return out
 }
