@@ -20,7 +20,7 @@ import (
 	"github.com/mdlayher/genetlink/genltest"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/mdlayher/wifi/internal/nl80211"
+	"github.com/howardstark/wifi/internal/nl80211"
 )
 
 func TestLinux_clientInterfacesBadResponseCommand(t *testing.T) {
@@ -262,6 +262,80 @@ func TestLinux_clientBSSOK(t *testing.T) {
 	if !reflect.DeepEqual(want, got) {
 		t.Fatalf("unexpected BSS:\n- want: %v\n-  got: %v",
 			want, got)
+	}
+}
+
+func TestLinux_clientScanAPOK(t *testing.T) {
+	ifi := &Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	}
+
+	want := []*BSS{
+		{
+			SSID: "Welcome",
+			BSSID: net.HardwareAddr{0x01, 0x18, 0x99, 0x98, 0x81, 0x99},
+			Frequency: 2462,
+			BeaconInterval: 100 * 1024 * time.Microsecond,
+			LastSeen:       10 * time.Second,
+		},
+		{
+			SSID: "吃了吗?",
+			BSSID: net.HardwareAddr{0x91, 0x19, 0x72, 0x53, 0x00, 0x00},
+			Frequency: 2462,
+			BeaconInterval: 100 * 1024 * time.Microsecond,
+			LastSeen:       10 * time.Second,
+		},
+	}
+
+	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+
+	msgsFn := mustMessages(t, nl80211.CmdNewScanResults, want)
+
+	c := testClient(t, checkRequest(nl80211.CmdTriggerScan, flags,
+		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
+			nestedAttrs, err := netlink.MarshalAttributes([]netlink.Attribute{
+				{
+					Type: nl80211.SchedScanMatchAttrSsid,
+					Length: 0,
+					Data: nlenc.Bytes(""),
+				},
+			})
+			if err != nil {
+				return nil, err
+			}
+			expAttrs := []netlink.Attribute{
+				{
+					Type: nl80211.AttrScanSsids,
+					Nested: true,
+					Length: uint16(len(nestedAttrs)),
+					Data: nestedAttrs,
+				},
+				{
+					Type: nl80211.AttrIfindex,
+					Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+				},
+			}
+
+			attrs, err := netlink.UnmarshalAttributes(greq.Data)
+			if err != nil {
+				t.Fatalf("failed to unmarshal attributes: %v", err)
+			}
+
+			if diff := diffNetlinkAttributes(expAttrs, attrs); diff != "" {
+				t.Fatalf("unexpected request netlink attributes (-want +got):\n%s", diff)
+			}
+
+			return msgsFn(greq, nreq)
+		},
+	))
+	got, err := c.ScanAPs(ifi)
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Fatalf("unexpected BSS:\n- want: %v\n- got: %v", want, got)
 	}
 }
 
@@ -571,6 +645,10 @@ func mustMessages(t *testing.T, command uint8, want interface{}) genltest.Func {
 
 	switch xs := want.(type) {
 	case []*Interface:
+		for _, x := range xs {
+			as = append(as, x)
+		}
+	case []*BSS:
 		for _, x := range xs {
 			as = append(as, x)
 		}

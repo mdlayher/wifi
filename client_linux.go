@@ -20,9 +20,11 @@ import (
 
 // Errors which may occur when interacting with generic netlink.
 var (
-	errMultipleMessages     = errors.New("expected only one generic netlink message")
-	errInvalidCommand       = errors.New("invalid generic netlink response command")
-	errInvalidFamilyVersion = errors.New("invalid generic netlink response family version")
+	errMultipleMessages     	 = errors.New("expected only one generic netlink message")
+	errInvalidCommand       	 = errors.New("invalid generic netlink response command")
+	errInvalidFamilyVersion 	 = errors.New("invalid generic netlink response family version")
+	errMissingMulticastGroupScan = errors.New("scan multicast group unavailable")
+	errScanAborted 				 = errors.New("scan aborted")
 )
 
 var _ osClient = &client{}
@@ -134,7 +136,7 @@ func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 		}
 	}
 	if mcastScan.Name != nl80211.MulticastGroupScan {
-		return nil, errors.New("multicast group \"scan\" unavailable")
+		return nil, errMissingMulticastGroupScan
 	}
 
 	err = c.c.JoinGroup(mcastScan.ID)
@@ -177,7 +179,7 @@ func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 		Data: attrs,
 	}
 
-	flags := netlink.HeaderFlagsRequest
+	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
 	msgs, err := c.c.Execute(req, c.familyID, flags)
 	if err != nil {
 		return nil, err
@@ -188,7 +190,7 @@ func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 			return nil, errInvalidFamilyVersion
 		}
 		if m.Header.Command == nl80211.CmdScanAborted {
-			return nil, errors.New("nl80211 ap scan has been aborted")
+			return nil, errScanAborted
 		}
 		if m.Header.Command == nl80211.CmdNewScanResults {
 			break
