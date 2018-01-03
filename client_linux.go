@@ -14,7 +14,8 @@ import (
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/mdlayher/wifi/internal/nl80211"
+	"github.com/howardstark/wifi/internal/nl80211"
+
 )
 
 // Errors which may occur when interacting with generic netlink.
@@ -120,6 +121,138 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 
 	return parseBSS(msgs)
 }
+
+func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
+	family, err := c.c.GetFamily(nl80211.GenlName)
+	if err != nil {
+		return nil, err
+	}
+	var mcastScan genetlink.MulticastGroup
+	for _, mcast := range family.Groups {
+		if mcast.Name == nl80211.MulticastGroupScan {
+			mcastScan = mcast
+		}
+	}
+	if mcastScan.Name != nl80211.MulticastGroupScan {
+		return nil, errors.New("multicast group \"scan\" unavailable")
+	}
+
+	err = c.c.JoinGroup(mcastScan.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	nestedAttrs, err := netlink.MarshalAttributes([]netlink.Attribute{
+		{
+			Type: nl80211.SchedScanMatchAttrSsid,
+			Length: 0,
+			Data: nlenc.Bytes(""),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	attrs, err := netlink.MarshalAttributes([]netlink.Attribute{
+		{
+			Type: nl80211.AttrScanSsids,
+			Nested: true,
+			Length: uint16(len(nestedAttrs)),
+			Data: nestedAttrs,
+		},
+		{
+			Type: nl80211.AttrIfindex,
+			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdTriggerScan,
+			Version: c.familyVersion,
+		},
+		Data: attrs,
+	}
+
+	flags := netlink.HeaderFlagsRequest
+	msgs, err := c.c.Execute(req, c.familyID, flags)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range msgs {
+		if m.Header.Version != c.familyVersion {
+			return nil, errInvalidFamilyVersion
+		}
+		if m.Header.Command == nl80211.CmdScanAborted {
+			return nil, errors.New("nl80211 ap scan has been aborted")
+		}
+		if m.Header.Command == nl80211.CmdNewScanResults {
+			break
+		}
+	}
+
+	err = c.c.LeaveGroup(mcastScan.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	attrs, err = netlink.MarshalAttributes([]netlink.Attribute{
+		{
+			Type: nl80211.AttrIfindex,
+			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	req = genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdGetScan,
+			Version: c.familyVersion,
+		},
+		Data: attrs,
+	}
+
+	flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	msgs, err = c.c.Execute(req, c.familyID, flags)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.checkMessages(msgs, nl80211.CmdNewScanResults); err != nil {
+		return nil, err
+	}
+
+	bssm, err := parseBSSMulti(msgs)
+	if err != nil {
+		return nil, err
+	}
+
+	return bssm, nil
+}
+
+//func (c *client) SetChannel(ifi *Interface, channel int) error {
+//	b, err := netlink.MarshalAttributes(ifi.idAttrs())
+//	if err != nil {
+//		return err
+//	}
+//
+//	req := genetlink.Message{
+//		Header: genetlink.Header{
+//			Command: nl80211.CmdSetChannel,
+//			Version: c.familyVersion,
+//		},
+//		Data: b,
+//	}
+//
+//	flags := netlink.HeaderFlagsRequest
+//}
 
 // StationInfo requests that nl80211 return station info for the specified
 // Interface.
@@ -276,6 +409,25 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 	}
 
 	return nil, os.ErrNotExist
+}
+
+func parseBSSMulti(msgs []genetlink.Message) ([]*BSS, error) {
+	bssm := make([]*BSS, 0, len(msgs))
+	for _, m := range msgs {
+		attrs, err := netlink.UnmarshalAttributes(m.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		var bss BSS
+		if err := (&bss).parseAttributes(attrs); err != nil {
+			return nil, err
+		}
+
+		bssm = append(bssm, &bss)
+	}
+
+	return bssm, nil
 }
 
 // parseAttributes parses netlink attributes into a BSS's fields.

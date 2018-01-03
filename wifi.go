@@ -262,3 +262,26 @@ func parseIEs(b []byte) ([]ie, error) {
 
 	return ies, nil
 }
+
+// FreqToChannel returns the channel of the specified
+// frequency (in MHz) for the 2.4GHz and 5GHz ranges.
+func FreqToChannel(freq int) int {
+	if freq == 2484 {
+		return 14
+	}
+	if freq < 2484 {
+		return (freq - 2407) / 5
+	}
+	return freq / 5 - 1000
+}
+
+func ChannelToFreq5GHz(channel int) int {
+	return (channel + 1000) * 5
+}
+
+func ChannelToFreq2Ghz(channel int) int {
+	if channel == 14 {
+		return 2484
+	}
+	return (channel * 5) + 2407
+}
