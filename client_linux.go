@@ -26,6 +26,8 @@ var (
 
 var _ osClient = &client{}
 
+type nl80211Command uint8
+
 // A client is the Linux implementation of osClient, which makes use of
 // netlink, generic netlink, and nl80211 to provide access to WiFi device
 // actions and statistics.
@@ -71,50 +73,101 @@ func (c *client) Close() error {
 // on this system.
 func (c *client) Interfaces() ([]*Interface, error) {
 	// Ask nl80211 to dump a list of all WiFi interfaces
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: nl80211.CmdGetInterface,
-			Version: c.familyVersion,
-		},
-	}
-
-	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
-	msgs, err := c.c.Execute(req, c.familyID, flags)
+	msgs, err := c.sendReq(nl80211.CmdGetInterface, nl80211.CmdNewInterface, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	if err := c.checkMessages(msgs, nl80211.CmdNewInterface); err != nil {
+	ifis, err := parseInterfaces(msgs)
+	if err != nil {
 		return nil, err
 	}
+	for _, ifi := range ifis {
+		if err = c.readIfiWiphy(ifi); err != nil {
+			return nil, err
+		}
+	}
+	return ifis, nil
+}
 
-	return parseInterfaces(msgs)
+// readIfiWiphy reads and parses Wiphy information into an interface.
+func (c *client) readIfiWiphy(ifi *Interface) error {
+	pmsgs, err := c.sendIfiReq(ifi, nl80211.CmdGetWiphy, nl80211.CmdNewWiphy)
+	if err != nil || len(pmsgs) == 0 {
+		return err
+	}
+	for _, pm := range pmsgs {
+		attrs, err := netlink.UnmarshalAttributes(pm.Data)
+		if err != nil {
+			return err
+		}
+		for _, attr := range attrs {
+			if attr.Type != nl80211.AttrWiphyBands {
+				continue
+			}
+			freqs, err := parseWiphyBands(attr)
+			if err != nil {
+				return err
+			}
+			ifi.Frequencies = freqs
+		}
+	}
+	return nil
+}
+
+// parseWiphyBands parses Wiphy bands into a set of supported frequencies.
+func parseWiphyBands(attrWiphyBands netlink.Attribute) (map[int]struct{}, error) {
+	bands, err := netlink.UnmarshalAttributes(attrWiphyBands.Data)
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[int]struct{})
+	for _, band := range bands {
+		bandAttrs, err := netlink.UnmarshalAttributes(band.Data)
+		if err != nil {
+			return nil, err
+		}
+		for _, ba := range bandAttrs {
+			if ba.Type != nl80211.BandAttrFreqs {
+				continue
+			}
+			freqs, err := parseFreqAttrs(ba)
+			if err != nil {
+				return nil, err
+			}
+			for _, freq := range freqs {
+				ret[freq] = struct{}{}
+			}
+		}
+	}
+	return ret, nil
+}
+
+// parseFreqAttrs parses band channels into a slice of frequencies.
+func parseFreqAttrs(freqAttrs netlink.Attribute) (ret []int, err error) {
+	channels, err := netlink.UnmarshalAttributes(freqAttrs.Data)
+	if err != nil {
+		return nil, err
+	}
+	for _, channel := range channels {
+		fas, err := netlink.UnmarshalAttributes(channel.Data)
+		if err != nil {
+			return nil, err
+		}
+		for _, fa := range fas {
+			if fa.Type == nl80211.FrequencyAttrFreq {
+				ret = append(ret, int(nlenc.Uint32(fa.Data)))
+			}
+		}
+	}
+	return ret, nil
 }
 
 // BSS requests that nl80211 return the BSS for the specified Interface.
 func (c *client) BSS(ifi *Interface) (*BSS, error) {
-	b, err := netlink.MarshalAttributes(ifi.idAttrs())
-	if err != nil {
-		return nil, err
-	}
-
 	// Ask nl80211 to retrieve BSS information for the interface specified
 	// by its attributes
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: nl80211.CmdGetScan,
-			Version: c.familyVersion,
-		},
-		Data: b,
-	}
-
-	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
-	msgs, err := c.c.Execute(req, c.familyID, flags)
+	msgs, err := c.sendIfiReq(ifi, nl80211.CmdGetScan, nl80211.CmdNewScanResults)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := c.checkMessages(msgs, nl80211.CmdNewScanResults); err != nil {
 		return nil, err
 	}
 
@@ -124,30 +177,15 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 // StationInfo requests that nl80211 return station info for the specified
 // Interface.
 func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
-	b, err := netlink.MarshalAttributes(ifi.idAttrs())
-	if err != nil {
-		return nil, err
-	}
-
 	// Ask nl80211 to retrieve station info for the interface specified
 	// by its attributes
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			// From nl80211.h:
-			//  * @NL80211_CMD_GET_STATION: Get station attributes for station identified by
-			//  * %NL80211_ATTR_MAC on the interface identified by %NL80211_ATTR_IFINDEX.
-			Command: nl80211.CmdGetStation,
-			Version: c.familyVersion,
-		},
-		Data: b,
-	}
-
-	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
-	msgs, err := c.c.Execute(req, c.familyID, flags)
+	// From nl80211.h:
+	//  * @NL80211_CMD_GET_STATION: Get station attributes for station identified by
+	//  * %NL80211_ATTR_MAC on the interface identified by %NL80211_ATTR_IFINDEX.
+	msgs, err := c.sendIfiReq(ifi, nl80211.CmdGetStation, nl80211.CmdNewStation)
 	if err != nil {
 		return nil, err
 	}
-
 	switch len(msgs) {
 	case 0:
 		return nil, os.ErrNotExist
@@ -156,19 +194,43 @@ func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
 	default:
 		return nil, errMultipleMessages
 	}
+	return parseStationInfo(msgs[0].Data)
+}
 
-	if err := c.checkMessages(msgs, nl80211.CmdNewStation); err != nil {
+// sendIfiReq sends a netlink request with interface data.
+func (c *client) sendIfiReq(ifi *Interface, cmd, cmdResp nl80211Command) ([]genetlink.Message, error) {
+	b, err := netlink.MarshalAttributes(ifi.idAttrs())
+	if err != nil {
 		return nil, err
 	}
+	return c.sendReq(cmd, cmdResp, b)
+}
 
-	return parseStationInfo(msgs[0].Data)
+// sendReq sends a netlink request and checks the response for matches.
+func (c *client) sendReq(cmd, cmdResp nl80211Command, dat []byte) ([]genetlink.Message, error) {
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: uint8(cmd),
+			Version: c.familyVersion,
+		},
+		Data: dat,
+	}
+	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	msgs, err := c.c.Execute(req, c.familyID, flags)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.checkMessages(msgs, cmdResp); err != nil {
+		return nil, err
+	}
+	return msgs, nil
 }
 
 // checkMessages verifies that response messages from generic netlink contain
 // the command and family version we expect.
-func (c *client) checkMessages(msgs []genetlink.Message, command uint8) error {
+func (c *client) checkMessages(msgs []genetlink.Message, command nl80211Command) error {
 	for _, m := range msgs {
-		if m.Header.Command != command {
+		if m.Header.Command != uint8(command) {
 			return errInvalidCommand
 		}
 
