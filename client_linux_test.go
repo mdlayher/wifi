@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net"
 	"os"
 	"reflect"
@@ -537,7 +536,7 @@ func (s *StationInfo) attributes() []netlink.Attribute {
 				{Type: nl80211.StaInfoRxBytes64, Data: nlenc.Uint64Bytes(uint64(s.ReceivedBytes))},
 				{Type: nl80211.StaInfoTxBytes, Data: nlenc.Uint32Bytes(uint32(s.TransmittedBytes))},
 				{Type: nl80211.StaInfoTxBytes64, Data: nlenc.Uint64Bytes(uint64(s.TransmittedBytes))},
-				{Type: nl80211.StaInfoSignal, Data: []byte{uint8(s.Signal) + math.MaxUint8}},
+				{Type: nl80211.StaInfoSignal, Data: []byte{byte(int8(s.Signal))}},
 				{Type: nl80211.StaInfoRxPackets, Data: nlenc.Uint32Bytes(uint32(s.ReceivedPackets))},
 				{Type: nl80211.StaInfoTxPackets, Data: nlenc.Uint32Bytes(uint32(s.TransmittedPackets))},
 				{Type: nl80211.StaInfoTxRetries, Data: nlenc.Uint32Bytes(uint32(s.TransmitRetries))},
