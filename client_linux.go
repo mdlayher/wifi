@@ -121,8 +121,26 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 }
 
 // StationInfo requests that nl80211 return station info for the specified
-// Interface.
+// Interface. Deprecated use Stations()
 func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
+
+	stations, err := c.Stations(ifi)
+	if err != nil {
+		return nil, err
+	}
+
+	switch len(stations) {
+	case 0:
+		return nil, os.ErrNotExist
+	case 1:
+   		return stations[0], nil
+	}
+	return nil, errMultipleMessages
+}
+
+// Stations requests that nl80211 return all station info for the specified
+// Interface.
+func (c *client) Stations(ifi *Interface) ([]*StationInfo, error) {
 	b, err := netlink.MarshalAttributes(ifi.idAttrs())
 	if err != nil {
 		return nil, err
@@ -147,21 +165,24 @@ func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
 		return nil, err
 	}
 
-	switch len(msgs) {
-	case 0:
+	if len(msgs) == 0 {
 		return nil, os.ErrNotExist
-	case 1:
-		break
-	default:
-		return nil, errMultipleMessages
 	}
 
-	if err := c.checkMessages(msgs, nl80211.CmdNewStation); err != nil {
-		return nil, err
+	stations := make([]*StationInfo, len(msgs))
+	for i := range msgs {
+		if err := c.checkMessages(msgs, nl80211.CmdNewStation); err != nil {
+			return nil, err
+		}
+
+		if stations[i], err = parseStationInfo(msgs[i].Data); err != nil {
+			return nil, err
+		}
 	}
 
-	return parseStationInfo(msgs[0].Data)
+	return stations, nil
 }
+
 
 // checkMessages verifies that response messages from generic netlink contain
 // the command and family version we expect.
@@ -323,25 +344,32 @@ func parseStationInfo(b []byte) (*StationInfo, error) {
 		return nil, err
 	}
 
+	var info StationInfo
 	for _, a := range attrs {
-		// The other attributes that are returned here appear to indicate the
-		// interface index and MAC address, which is information we already
-		// possess.  No need to parse them for now.
-		if a.Type != nl80211.AttrStaInfo {
+
+		switch a.Type {
+		case nl80211.AttrMac:
+			info.HardwareAddr = net.HardwareAddr(a.Data)
+
+		case nl80211.AttrStaInfo:
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := (&info).parseAttributes(nattrs); err != nil {
+				return nil, err
+			}
+
+			// nl80211.AttrStaInfo is last attibute we are interested in
+			return &info, nil
+
+		default:
+			// The other attributes that are returned here appear
+			// nl80211.AttrIfindex, nl80211.AttrGeneration
+			// No need to parse them for now.
 			continue
 		}
-
-		nattrs, err := netlink.UnmarshalAttributes(a.Data)
-		if err != nil {
-			return nil, err
-		}
-
-		var info StationInfo
-		if err := (&info).parseAttributes(nattrs); err != nil {
-			return nil, err
-		}
-
-		return &info, nil
 	}
 
 	// No station info found

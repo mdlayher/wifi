@@ -31,3 +31,8 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
 	return nil, errUnimplemented
 }
+
+// Stations always returns an error.
+func (c *client) Stations(ifi *Interface) ([]*StationInfo, error) {
+	return nil, errUnimplemented
+}
