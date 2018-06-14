@@ -303,109 +303,7 @@ func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
 	}
 }
 
-func TestLinux_clientStationInfoMultipleMessages(t *testing.T) {
-	sta := []*StationInfo{
-		{
-			HardwareAddr:       net.HardwareAddr{0xb8, 0x27, 0xeb, 0xd5, 0xf3, 0xef},
-			Connected:          30 * time.Minute,
-			Inactive:           4 * time.Millisecond,
-			ReceivedBytes:      1000,
-			TransmittedBytes:   2000,
-			ReceivedPackets:    10,
-			TransmittedPackets: 20,
-			Signal:             -50,
-			TransmitRetries:    5,
-			TransmitFailed:     2,
-			BeaconLoss:         3,
-			ReceiveBitrate:     130000000,
-			TransmitBitrate:    130000000,
-		},
-		{
-			HardwareAddr:       net.HardwareAddr{0x40, 0xa5, 0xef, 0xd9, 0x96, 0x6f},
-			Connected:          60 * time.Minute,
-			Inactive:           8 * time.Millisecond,
-			ReceivedBytes:      2000,
-			TransmittedBytes:   4000,
-			ReceivedPackets:    20,
-			TransmittedPackets: 40,
-			Signal:             -25,
-			TransmitRetries:    10,
-			TransmitFailed:     4,
-			BeaconLoss:         6,
-			ReceiveBitrate:     260000000,
-			TransmitBitrate:    260000000,
-		},
-	}
-
-	c := testClient(t, mustMessages(t, nl80211.CmdNewStation, sta))
-
-	want := errMultipleMessages
-	_, got := c.StationInfo(&Interface{
-		Index:        1,
-		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
-	})
-
-	if want != got {
-		t.Fatalf("unexpected error:\n- want: %+v\n-  got: %+v",
-			want, got)
-	}
-}
-
 func TestLinux_clientStationInfoOK(t *testing.T) {
-	want := &StationInfo{
-		HardwareAddr:       net.HardwareAddr{0xb8, 0x27, 0xeb, 0xd5, 0xf3, 0xef},
-		Connected:          30 * time.Minute,
-		Inactive:           4 * time.Millisecond,
-		ReceivedBytes:      1000,
-		TransmittedBytes:   2000,
-		ReceivedPackets:    10,
-		TransmittedPackets: 20,
-		Signal:             -50,
-		TransmitRetries:    5,
-		TransmitFailed:     2,
-		BeaconLoss:         3,
-		ReceiveBitrate:     130000000,
-		TransmitBitrate:    130000000,
-	}
-
-	ifi := &Interface{
-		Index:        1,
-		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
-	}
-
-	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
-
-	msgsFn := mustMessages(t, nl80211.CmdNewStation, want)
-
-	c := testClient(t, checkRequest(nl80211.CmdGetStation, flags,
-		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
-			// Also verify that the correct interface attributes are
-			// present in the request.
-			attrs, err := netlink.UnmarshalAttributes(greq.Data)
-			if err != nil {
-				t.Fatalf("failed to unmarshal attributes: %v", err)
-			}
-
-			if diff := diffNetlinkAttributes(ifi.idAttrs(), attrs); diff != "" {
-				t.Fatalf("unexpected request netlink attributes (-want +got):\n%s", diff)
-			}
-
-			return msgsFn(greq, nreq)
-		},
-	))
-
-	got, err := c.StationInfo(ifi)
-	if err != nil {
-		log.Fatalf("unexpected error: %v", err)
-	}
-
-	if !reflect.DeepEqual(want, got) {
-		t.Fatalf("unexpected station info:\n- want: %v\n-  got: %v",
-			want, got)
-	}
-}
-
-func TestLinux_clientStationsOK(t *testing.T) {
 
 	want := []*StationInfo{
 		{
@@ -466,7 +364,7 @@ func TestLinux_clientStationsOK(t *testing.T) {
 		},
 	))
 
-	got, err := c.Stations(ifi)
+	got, err := c.StationInfo(ifi)
 	if err != nil {
 		log.Fatalf("unexpected error: %v", err)
 	}
@@ -683,8 +581,6 @@ func mustMessages(t *testing.T, command uint8, want interface{}) genltest.Func {
 			as = append(as, x)
 		}
 	case *BSS:
-		as = append(as, xs)
-	case *StationInfo:
 		as = append(as, xs)
 
 	case []*StationInfo:

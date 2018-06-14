@@ -18,7 +18,6 @@ import (
 
 // Errors which may occur when interacting with generic netlink.
 var (
-	errMultipleMessages     = errors.New("expected only one generic netlink message")
 	errInvalidCommand       = errors.New("invalid generic netlink response command")
 	errInvalidFamilyVersion = errors.New("invalid generic netlink response family version")
 )
@@ -120,27 +119,9 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	return parseBSS(msgs)
 }
 
-// StationInfo requests that nl80211 return station info for the specified
-// Interface. Deprecated use Stations()
-func (c *client) StationInfo(ifi *Interface) (*StationInfo, error) {
-
-	stations, err := c.Stations(ifi)
-	if err != nil {
-		return nil, err
-	}
-
-	switch len(stations) {
-	case 0:
-		return nil, os.ErrNotExist
-	case 1:
-   		return stations[0], nil
-	}
-	return nil, errMultipleMessages
-}
-
-// Stations requests that nl80211 return all station info for the specified
+// StationInfo requests that nl80211 return all station info for the specified
 // Interface.
-func (c *client) Stations(ifi *Interface) ([]*StationInfo, error) {
+func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	b, err := netlink.MarshalAttributes(ifi.idAttrs())
 	if err != nil {
 		return nil, err
