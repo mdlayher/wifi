@@ -303,38 +303,39 @@ func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
 	}
 }
 
-func TestLinux_clientStationInfoMultipleMessages(t *testing.T) {
-	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
-		// Multiple messages are an error.
-		return []genetlink.Message{{}, {}}, nil
-	})
-
-	want := errMultipleMessages
-	_, got := c.StationInfo(&Interface{
-		Index:        1,
-		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
-	})
-
-	if want != got {
-		t.Fatalf("unexpected error:\n- want: %+v\n-  got: %+v",
-			want, got)
-	}
-}
-
 func TestLinux_clientStationInfoOK(t *testing.T) {
-	want := &StationInfo{
-		Connected:          30 * time.Minute,
-		Inactive:           4 * time.Millisecond,
-		ReceivedBytes:      1000,
-		TransmittedBytes:   2000,
-		ReceivedPackets:    10,
-		TransmittedPackets: 20,
-		Signal:             -50,
-		TransmitRetries:    5,
-		TransmitFailed:     2,
-		BeaconLoss:         3,
-		ReceiveBitrate:     130000000,
-		TransmitBitrate:    130000000,
+
+	want := []*StationInfo{
+		{
+			HardwareAddr:       net.HardwareAddr{0xb8, 0x27, 0xeb, 0xd5, 0xf3, 0xef},
+			Connected:          30 * time.Minute,
+			Inactive:           4 * time.Millisecond,
+			ReceivedBytes:      1000,
+			TransmittedBytes:   2000,
+			ReceivedPackets:    10,
+			TransmittedPackets: 20,
+			Signal:             -50,
+			TransmitRetries:    5,
+			TransmitFailed:     2,
+			BeaconLoss:         3,
+			ReceiveBitrate:     130000000,
+			TransmitBitrate:    130000000,
+		},
+		{
+			HardwareAddr:       net.HardwareAddr{0x40, 0xa5, 0xef, 0xd9, 0x96, 0x6f},
+			Connected:          60 * time.Minute,
+			Inactive:           8 * time.Millisecond,
+			ReceivedBytes:      2000,
+			TransmittedBytes:   4000,
+			ReceivedPackets:    20,
+			TransmittedPackets: 40,
+			Signal:             -25,
+			TransmitRetries:    10,
+			TransmitFailed:     4,
+			BeaconLoss:         6,
+			ReceiveBitrate:     260000000,
+			TransmitBitrate:    260000000,
+		},
 	}
 
 	ifi := &Interface{
@@ -368,9 +369,11 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 		log.Fatalf("unexpected error: %v", err)
 	}
 
-	if !reflect.DeepEqual(want, got) {
-		t.Fatalf("unexpected station info:\n- want: %v\n-  got: %v",
-			want, got)
+	for i := range want {
+		if !reflect.DeepEqual(want[i], got[i]) {
+			t.Fatalf("unexpected station info:\n- want: %v\n-  got: %v",
+				want[i], got[i])
+		}
 	}
 }
 
@@ -528,6 +531,10 @@ func (s *StationInfo) attributes() []netlink.Attribute {
 	return []netlink.Attribute{
 		// TODO(mdlayher): return more attributes for validation?
 		{
+			Type: nl80211.AttrMac,
+			Data: s.HardwareAddr,
+		},
+		{
 			Type: nl80211.AttrStaInfo,
 			Data: mustMarshalAttributes([]netlink.Attribute{
 				{Type: nl80211.StaInfoConnectedTime, Data: nlenc.Uint32Bytes(uint32(s.Connected.Seconds()))},
@@ -575,8 +582,11 @@ func mustMessages(t *testing.T, command uint8, want interface{}) genltest.Func {
 		}
 	case *BSS:
 		as = append(as, xs)
-	case *StationInfo:
-		as = append(as, xs)
+
+	case []*StationInfo:
+		for _, x := range xs {
+			as = append(as, x)
+		}
 	default:
 		t.Fatalf("cannot make messages for type: %T", xs)
 	}
