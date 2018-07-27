@@ -82,7 +82,7 @@ func TestLinux_clientInterfacesOK(t *testing.T) {
 
 	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
 
-	c := testClient(t, checkRequest(nl80211.CmdGetInterface, flags,
+	c := testClient(t, genltest.CheckRequest(familyID, nl80211.CmdGetInterface, flags,
 		mustMessages(t, nl80211.CmdNewInterface, want),
 	))
 
@@ -236,7 +236,7 @@ func TestLinux_clientBSSOK(t *testing.T) {
 
 	msgsFn := mustMessages(t, nl80211.CmdNewScanResults, want)
 
-	c := testClient(t, checkRequest(nl80211.CmdGetScan, flags,
+	c := testClient(t, genltest.CheckRequest(familyID, nl80211.CmdGetScan, flags,
 		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
 			// Also verify that the correct interface attributes are
 			// present in the request.
@@ -347,7 +347,7 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 
 	msgsFn := mustMessages(t, nl80211.CmdNewStation, want)
 
-	c := testClient(t, checkRequest(nl80211.CmdGetStation, flags,
+	c := testClient(t, genltest.CheckRequest(familyID, nl80211.CmdGetStation, flags,
 		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
 			// Also verify that the correct interface attributes are
 			// present in the request.
@@ -389,9 +389,11 @@ func TestLinux_initClientErrorCloseConn(t *testing.T) {
 	}
 }
 
+const familyID = 26
+
 func testClient(t *testing.T, fn genltest.Func) *client {
 	family := genetlink.Family{
-		ID:      26,
+		ID:      familyID,
 		Name:    nl80211.GenlName,
 		Version: 1,
 	}
@@ -428,20 +430,6 @@ func testClient(t *testing.T, fn genltest.Func) *client {
 	}
 
 	return client
-}
-
-func checkRequest(command uint8, flags netlink.HeaderFlags, fn genltest.Func) genltest.Func {
-	return func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
-		if want, got := command, greq.Header.Command; command != 0 && want != got {
-			return nil, fmt.Errorf("unexpected generic netlink header command: %d, want: %d", got, want)
-		}
-
-		if want, got := flags, nreq.Header.Flags; flags != 0 && want != got {
-			return nil, fmt.Errorf("unexpected generic netlink header command: %s, want: %s", got, want)
-		}
-
-		return fn(greq, nreq)
-	}
 }
 
 // diffNetlinkAttributes compares two []netlink.Attributes after zeroing their
