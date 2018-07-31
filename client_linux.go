@@ -417,7 +417,7 @@ func phyNumber(attrs []netlink.Attribute) (int, error) {
 			return int(nlenc.Uint32(a.Data)), nil
 		}
 	}
-	return 0, fmt.Errorf("There was no wiphy attribute!")
+	return 0, fmt.Errorf("there was no wiphy attribute")
 }
 
 // parseAttributes parses netlink attributes into a PHY's fields.

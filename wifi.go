@@ -250,7 +250,7 @@ type PHY struct {
 	Extra map[uint16][]byte
 }
 
-// Band Attributes represent the RF band-specific attributes.
+// BandAttributes represent the RF band-specific attributes.
 type BandAttributes struct {
 	// High-Throughput (802.11n) device capabilities (nil if not supported).
 	HTCapabilities *HTCapabilities
@@ -364,6 +364,7 @@ func FrequencyToChannel(freq int) int {
 	}
 }
 
+// Constants representing the standard WiFi frequency bands.
 const (
 	Band2GHz  = nl80211.Band2ghz
 	Band5GHz  = nl80211.Band5ghz
@@ -387,9 +388,8 @@ func ChannelToFrequency(channel int, band int) int {
 	case Band5GHz:
 		if channel >= 182 && channel <= 196 {
 			return 4000 + channel*5
-		} else {
-			return 5000 + channel*5
 		}
+		return 5000 + channel*5
 	case Band60GHz:
 		if channel < 5 {
 			return 56160 + channel*2160
