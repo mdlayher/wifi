@@ -5,6 +5,7 @@ package wifi
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"time"
@@ -89,6 +90,66 @@ func (c *client) Interfaces() ([]*Interface, error) {
 	return parseInterfaces(msgs)
 }
 
+// PHY requests that nl80211 return information for the physical device
+// specified by the index.
+func (c *client) PHY(n int) (*PHY, error) {
+	attrs := []netlink.Attribute{
+		{
+			Type: nl80211.AttrWiphy,
+			Data: nlenc.Uint32Bytes(uint32(n)),
+		},
+	}
+	phys, err := c.getPHYs(attrs)
+	if err != nil {
+		return nil, err
+	}
+	if len(phys) == 0 {
+		return nil, fmt.Errorf("No PHY with index %d", n)
+	}
+	return phys[0], nil
+}
+
+// PHYs requests that nl80211 return information for all wireless physical
+// devices.
+func (c *client) PHYs() ([]*PHY, error) {
+	attrs := make([]netlink.Attribute, 0)
+	return c.getPHYs(attrs)
+}
+
+// getPHYs is the back-end for PHY() and PHYs(): building and making the netlink
+// call, and parsing the response.
+func (c *client) getPHYs(attrs []netlink.Attribute) ([]*PHY, error) {
+	// The kernel, as of 3713b4e364eff (3.10), doesn't emit all information
+	// unless SplitWiphyDump is set.  We could check for it by issuing
+	// CmdGetProtocolFeatures and seeing if ProtocolFeatureSplitWiphyDump is
+	// set, if we care about kernels that old ...
+	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrSplitWiphyDump})
+	nlattrs, err := netlink.MarshalAttributes(attrs)
+	if err != nil {
+		return nil, err
+	}
+
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdGetWiphy,
+			Version: c.familyVersion,
+		},
+		Data: nlattrs,
+	}
+
+	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	msgs, err := c.c.Execute(req, c.familyID, flags)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.checkMessages(msgs, nl80211.CmdNewWiphy); err != nil {
+		return nil, err
+	}
+
+	return parsePHYs(msgs)
+}
+
 // BSS requests that nl80211 return the BSS for the specified Interface.
 func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	b, err := netlink.MarshalAttributes(ifi.idAttrs())
@@ -163,7 +224,6 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 
 	return stations, nil
 }
-
 
 // checkMessages verifies that response messages from generic netlink contain
 // the command and family version we expect.
@@ -279,6 +339,37 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 	return nil, os.ErrNotExist
 }
 
+func parsePHYs(msgs []genetlink.Message) ([]*PHY, error) {
+	phys := make([]*PHY, 0)
+	var phy *PHY
+	curphynum := -1
+	for _, m := range msgs {
+		attrs, err := netlink.UnmarshalAttributes(m.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		// Because we get a single stream of messages spanning multiple
+		// PHYs, we have to peek into the attributes to see if it's the
+		// same PHY as we've been processing.
+		phynum, err := phyNumber(attrs)
+		if err != nil {
+			return nil, err
+		}
+		if phynum != curphynum {
+			phy = new(PHY)
+			phy.Extra = make(map[uint16][]byte, 0)
+			phys = append(phys, phy)
+			curphynum = phynum
+		}
+
+		if err := phy.parseAttributes(attrs); err != nil {
+			return nil, err
+		}
+	}
+	return phys, nil
+}
+
 // parseAttributes parses netlink attributes into a BSS's fields.
 func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
@@ -315,6 +406,264 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 	}
 
 	return nil
+}
+
+// phyNumber extracts the first integer device index (AttrWiphy) from a list of
+// netlink attributes.
+func phyNumber(attrs []netlink.Attribute) (int, error) {
+	for _, a := range attrs {
+		switch a.Type {
+		case nl80211.AttrWiphy:
+			return int(nlenc.Uint32(a.Data)), nil
+		}
+	}
+	return 0, fmt.Errorf("There was no wiphy attribute!")
+}
+
+// parseAttributes parses netlink attributes into a PHY's fields.
+func (p *PHY) parseAttributes(attrs []netlink.Attribute) error {
+	for _, a := range attrs {
+		switch a.Type {
+		case nl80211.AttrWiphy:
+			p.Index = int(nlenc.Uint32(a.Data))
+
+		case nl80211.AttrWiphyName:
+			p.Name = nlenc.String(a.Data)
+
+		case nl80211.AttrSupportedIftypes:
+			// This contains nested attributes with no data; the
+			// data we care about is the type.
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return err
+			}
+			for _, na := range nattrs {
+				p.SupportedIftypes = append(p.SupportedIftypes, InterfaceType(na.Type))
+			}
+
+		case nl80211.AttrSoftwareIftypes:
+			// This contains nested attributes with no data; the
+			// data we care about is the type.
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return err
+			}
+			for _, na := range nattrs {
+				p.SoftwareIftypes = append(p.SoftwareIftypes, InterfaceType(na.Type))
+			}
+
+		case nl80211.AttrWiphyBands:
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return err
+			}
+			for i, band := range nattrs {
+				// band.Type has the band number
+				err := p.parseBandAttributes(band)
+				if err != nil {
+					return fmt.Errorf("Couldn't decode band %d (attr#%d) data: %s",
+						band.Type, i, err)
+				}
+			}
+
+		case nl80211.AttrInterfaceCombinations:
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return err
+			}
+			for i, combo := range nattrs {
+				c, err := parseCombo(combo)
+				if err != nil {
+					return fmt.Errorf("Couldn't decode combo %d data: %s", i, err)
+				}
+				p.InterfaceCombinations = append(p.InterfaceCombinations, *c)
+			}
+
+		default:
+			p.Extra[a.Type] = a.Data
+		}
+	}
+	return nil
+}
+
+// parseCombo parses a netlink attribute into an InterfaceCombination.
+func parseCombo(comboNLA netlink.Attribute) (*InterfaceCombination, error) {
+	attrs, err := netlink.UnmarshalAttributes(comboNLA.Data)
+	if err != nil {
+		return nil, err
+	}
+
+	combo := &InterfaceCombination{}
+	for _, attr := range attrs {
+		switch attr.Type {
+		case nl80211.IfaceCombLimits:
+			lattrs, err := netlink.UnmarshalAttributes(attr.Data)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, l := range lattrs {
+				comboLimit := InterfaceCombinationLimit{}
+				ltypes, err := netlink.UnmarshalAttributes(l.Data)
+				if err != nil {
+					return nil, err
+				}
+
+				for _, la := range ltypes {
+					switch la.Type {
+					case nl80211.IfaceLimitMax:
+						comboLimit.Max = int(nlenc.Uint32(la.Data))
+					case nl80211.IfaceLimitTypes:
+						types, err := netlink.UnmarshalAttributes(la.Data)
+						if err != nil {
+							return nil, err
+						}
+
+						for _, typ := range types {
+							comboLimit.InterfaceTypes = append(comboLimit.InterfaceTypes, InterfaceType(typ.Type))
+						}
+					}
+				}
+				combo.CombinationLimits = append(combo.CombinationLimits, comboLimit)
+			}
+
+		case nl80211.IfaceCombNumChannels:
+			combo.NumChannels = int(nlenc.Uint32(attr.Data))
+
+		case nl80211.IfaceCombMaxnum:
+			combo.Total = int(nlenc.Uint32(attr.Data))
+
+		case nl80211.IfaceCombStaApBiMatch:
+			combo.StaApBiMatch = true
+		}
+	}
+	return combo, nil
+}
+
+// parseBandAttributes parses a netlink attribute into the band-specific data of
+// a PHY.
+func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
+	attrs, err := netlink.UnmarshalAttributes(nlband.Data)
+	if err != nil {
+		return err
+	}
+
+	// We'll get called multiple times for individual attributes of a band,
+	// so be sure to use the right element of the BandAttributes array, or
+	// add new ones if we haven't seen the band before.  The expectation is
+	// that we'll get them in order, 0..n, but this should work for any
+	// ordering.
+	for int(nlband.Type)+1 > len(p.BandAttributes) {
+		ba := &BandAttributes{}
+		p.BandAttributes = append(p.BandAttributes, *ba)
+	}
+	ba := &p.BandAttributes[nlband.Type]
+
+	for _, attr := range attrs {
+		switch attr.Type {
+		case nl80211.BandAttrHtCapa:
+			ba.HTCapabilities = decodeHTCapabilities(nlenc.Uint16(attr.Data))
+
+		case nl80211.BandAttrHtAmpduFactor:
+			exponent := nlenc.Uint8(attr.Data)
+			// The exponent comes from three bits of OTA data, but
+			// netlink gives it to us as an 8-bit value.
+			if exponent < 4 {
+				ba.MaxRxAMPDULength = (1 << (13 + exponent)) - 1
+			}
+
+		case nl80211.BandAttrHtAmpduDensity:
+			spacing := nlenc.Uint8(attr.Data)
+			if spacing > 0 {
+				ba.MaxRxAMPDUSpacing = (1 << (spacing - 1)) * time.Microsecond / 4
+			}
+
+		case nl80211.BandAttrHtMcsSet:
+		case nl80211.BandAttrVhtCapa:
+		case nl80211.BandAttrVhtMcsSet:
+			// TODO Handle these
+
+		case nl80211.BandAttrRates:
+			nattrs, err := netlink.UnmarshalAttributes(attr.Data)
+			if err != nil {
+				return err
+			}
+			// It doesn't look like we need to take as much care to
+			// build up the BitrateAttributes array as we do the
+			// FrequenceAttributes array, since it appears we get
+			// all of the former back in a single message.  But just
+			// in case ...
+			for _, nlbra := range nattrs {
+				brattrs, err := netlink.UnmarshalAttributes(nlbra.Data)
+				if err != nil {
+					return err
+				}
+				var bra BitrateAttrs
+				for _, bra2 := range brattrs {
+					switch bra2.Type {
+					case nl80211.BitrateAttrRate:
+						bra.Bitrate = 0.1 * float32(nlenc.Uint32(bra2.Data))
+					case nl80211.BitrateAttr2ghzShortpreamble:
+						bra.ShortPreamble = true
+					}
+				}
+				ba.BitrateAttributes = append(ba.BitrateAttributes, bra)
+			}
+
+		case nl80211.BandAttrFreqs:
+			nattrs, err := netlink.UnmarshalAttributes(attr.Data)
+			if err != nil {
+				return err
+			}
+			for _, nlfa := range nattrs {
+				fattrs, err := netlink.UnmarshalAttributes(nlfa.Data)
+				if err != nil {
+					return err
+				}
+				var fa FrequencyAttrs
+				for _, fa2 := range fattrs {
+					switch fa2.Type {
+					case nl80211.FrequencyAttrFreq:
+						fa.Frequency = int(nlenc.Uint32(fa2.Data))
+					case nl80211.FrequencyAttrDisabled:
+						fa.Disabled = true
+					// In 8fe02e167efa8 (3.14), Linux renamed the
+					// PASSIVE_SCAN frequency attribute to NO_IR,
+					// and deprecated NO_IBSS (4).  It sends both,
+					// but we don't need to support old kernels.
+					case nl80211.FrequencyAttrNoIr:
+						fa.NoIR = true
+					case nl80211.FrequencyAttrRadar:
+						fa.RadarDetection = true
+					case nl80211.FrequencyAttrMaxTxPower:
+						fa.MaxTxPower = 0.01 * float32(nlenc.Uint32(fa2.Data))
+					}
+				}
+				ba.FrequencyAttributes = append(ba.FrequencyAttributes, fa)
+			}
+		}
+	}
+
+	return nil
+}
+
+// decodeHTCapabilities parses a 16-bit integer into an HTCapabilities struct.
+func decodeHTCapabilities(cap uint16) *HTCapabilities {
+	return &HTCapabilities{
+		RxLDPC:             cap&(1<<0) != 0,
+		HT2040:             cap&(1<<1) != 0,
+		SMPowerSave:        uint8((cap >> 2) & 0x3),
+		RxGreenfield:       cap&(1<<4) != 0,
+		RxHT20SGI:          cap&(1<<5) != 0,
+		RxHT40SGI:          cap&(1<<6) != 0,
+		TxSTBC:             cap&(1<<7) != 0,
+		RxSTBCStreams:      uint8((cap >> 8) & 0x3),
+		HTDelayedBlockAck:  cap&(1<<10) != 0,
+		LongMaxAMSDULength: cap&(1<<11) != 0,
+		DSSSCCKHT40:        cap&(1<<12) != 0,
+		FortyMhzIntolerant: cap&(1<<14) != 0,
+		LSIGTxOPProtection: cap&(1<<15) != 0,
+	}
 }
 
 // parseStationInfo parses StationInfo attributes from a byte slice of

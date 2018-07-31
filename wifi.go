@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"time"
+
+	"github.com/mdlayher/wifi/internal/nl80211"
 )
 
 var (
@@ -80,6 +82,8 @@ func (t InterfaceType) String() string {
 		return "station"
 	case InterfaceTypeAP:
 		return "access point"
+	case InterfaceTypeAPVLAN:
+		return "access point/VLAN"
 	case InterfaceTypeWDS:
 		return "wireless distribution"
 	case InterfaceTypeMonitor:
@@ -218,6 +222,180 @@ func (s BSSStatus) String() string {
 	default:
 		return fmt.Sprintf("unknown(%d)", s)
 	}
+}
+
+// A PHY represents the physical attributes of a wireless device.
+type PHY struct {
+	// The index of the interface.
+	Index int
+
+	// The name of the interface.
+	Name string
+
+	// The interface types this device supports.
+	SupportedIftypes []InterfaceType
+
+	// The software-only interface types this device supports.
+	SoftwareIftypes []InterfaceType
+
+	// An array of attributes related to each radio frequency band.
+	BandAttributes []BandAttributes
+
+	// A description of what combinations of interfaces the device can
+	// support running simultaneously, on virtual MACs.
+	InterfaceCombinations []InterfaceCombination
+
+	// All the attributes the kernel has told us about, but we haven't
+	// parsed.
+	Extra map[uint16][]byte
+}
+
+// Band Attributes represent the RF band-specific attributes.
+type BandAttributes struct {
+	// High-Throughput (802.11n) device capabilities (nil if not supported).
+	HTCapabilities *HTCapabilities
+
+	// Maximum receivable A-MPDU (Aggregated MAC Protocol Data Unit) frame
+	// size.
+	MaxRxAMPDULength int // XXX uint16?
+
+	// Minimum spacing between A-MPDU frames.
+	MaxRxAMPDUSpacing time.Duration
+
+	// Per-frequency (channel) attributes.
+	FrequencyAttributes []FrequencyAttrs
+
+	// Per-bitrate attributes.
+	BitrateAttributes []BitrateAttrs
+}
+
+// HTCapabilities represents 802.11n (High-Throughput) capabilities.  This group
+// of attributes is specific to each band of frequencies.
+type HTCapabilities struct {
+	RxLDPC             bool
+	HT2040             bool
+	SMPowerSave        uint8
+	RxGreenfield       bool
+	RxHT20SGI          bool
+	RxHT40SGI          bool
+	TxSTBC             bool
+	RxSTBCStreams      uint8
+	HTDelayedBlockAck  bool
+	LongMaxAMSDULength bool
+	DSSSCCKHT40        bool
+	FortyMhzIntolerant bool
+	LSIGTxOPProtection bool
+}
+
+// FrequencyAttrs represents the attributes of a WiFi frequency/channel.
+type FrequencyAttrs struct {
+	// Frequency is the radio frequency in MHz.
+	Frequency int
+
+	// Disabled indicates that the channel is disabled due to regulatory
+	// requirements.
+	Disabled bool
+
+	// NoIR indicates that no mechanisms that initiate radiation are
+	// permitted on this channel.
+	NoIR bool
+
+	// RadarDetection indicates that radar detection is mandatory on this
+	// channel.
+	RadarDetection bool
+
+	// MaxTxPower gives the maximum transmission power in mBm (100 * dBm).
+	MaxTxPower float32
+}
+
+// BitrateAttrs represents the attributes of a bitrate.
+type BitrateAttrs struct {
+	// Bitrate is the bitrate in units of 100kbps.
+	Bitrate float32
+
+	// ShortPreamble indicates that a short preamble is supported in the
+	// 2.4GHz band.
+	ShortPreamble bool
+}
+
+// InterfaceCombination represents a group of valid combinations of interface
+// types which can be simultaneously supported on a device.
+type InterfaceCombination struct {
+	CombinationLimits []InterfaceCombinationLimit
+
+	// Total is the maximum number of interfaces that can be created in this
+	// group.
+	Total int
+
+	// NumChannels is the number of different channels which may be used in
+	// this group.
+	NumChannels int
+
+	// StaApBiMatch indicates that beacon intervals within this group must
+	// all be the same, regardless of interface type.
+	StaApBiMatch bool
+}
+
+// InterfaceCombinationLimit represents a single combination of interface types
+// which may be run simultaneously on a device.
+type InterfaceCombinationLimit struct {
+	InterfaceTypes []InterfaceType
+
+	// Max is the maximum number of interfaces that can be chosen from the
+	// set of interface types in InterfaceTypes.
+	Max int
+}
+
+// FrequencyToChannel returns the channel number given the frequency in MHz, as
+// defined by IEEE802.11-2007, 17.3.8.3.2 and Annex J.
+func FrequencyToChannel(freq int) int {
+	if freq == 2484 {
+		return 14
+	} else if freq < 2484 {
+		return (freq - 2407) / 5
+	} else if freq >= 4910 && freq <= 4980 {
+		return (freq - 4000) / 5
+	} else if freq <= 45000 {
+		return (freq - 5000) / 5
+	} else if freq >= 58320 && freq <= 64800 {
+		return (freq - 56160) / 2160
+	} else {
+		return 0
+	}
+}
+
+const (
+	Band2GHz  = nl80211.Band2ghz
+	Band5GHz  = nl80211.Band5ghz
+	Band60GHz = nl80211.Band60ghz
+)
+
+// ChannelToFrequency returns the frequency given the channel number and the
+// band, as there are overlapping channel numbers between bands.
+func ChannelToFrequency(channel int, band int) int {
+	if channel <= 0 {
+		return 0
+	}
+
+	switch band {
+	case Band2GHz:
+		if channel == 14 {
+			return 2484
+		} else if channel < 14 {
+			return 2407 + channel*5
+		}
+	case Band5GHz:
+		if channel >= 182 && channel <= 196 {
+			return 4000 + channel*5
+		} else {
+			return 5000 + channel*5
+		}
+	case Band60GHz:
+		if channel < 5 {
+			return 56160 + channel*2160
+		}
+	}
+	return 0
 }
 
 // List of 802.11 Information Element types.
