@@ -252,15 +252,12 @@ type PHY struct {
 
 // BandAttributes represent the RF band-specific attributes.
 type BandAttributes struct {
-	// High-Throughput (802.11n) device capabilities (nil if not supported).
+	// High Throughput (802.11n) device capabilities (nil if not supported).
 	HTCapabilities *HTCapabilities
 
-	// Maximum receivable A-MPDU (Aggregated MAC Protocol Data Unit) frame
-	// size.
-	MaxRxAMPDULength int // XXX uint16?
-
-	// Minimum spacing between A-MPDU frames.
-	MaxRxAMPDUSpacing time.Duration
+	// Minimum spacing between A-MPDU frames.  Used for both HT and VHT
+	// capable devices.
+	MinRxAMPDUSpacing time.Duration
 
 	// Per-frequency (channel) attributes.
 	FrequencyAttributes []FrequencyAttrs
@@ -269,22 +266,80 @@ type BandAttributes struct {
 	BitrateAttributes []BitrateAttrs
 }
 
-// HTCapabilities represents 802.11n (High-Throughput) capabilities.  This group
-// of attributes is specific to each band of frequencies.
+// HTCapabilities represents 802.11n (High Throughput) capabilities.  This group
+// of attributes is specific to each band of frequencies.  Failure to support
+// any given attribute may be due to lack support in the driver or the firmware,
+// not only in the hardware.  Some of them may also be overridden during station
+// association.
+//
+// The fields represent those in the HT Capabilities element (802.11-2016,
+// 9.4.2.56).  Notably missing is information about the device's Spatial
+// Multiplexing Power Save (SMPS) capability.  SMPS support must be determined
+// by retrieving the device feature flags (not yet supported).
 type HTCapabilities struct {
-	RxLDPC             bool
-	HT2040             bool
-	SMPowerSave        uint8
-	RxGreenfield       bool
-	RxHT20SGI          bool
-	RxHT40SGI          bool
-	TxSTBC             bool
-	RxSTBCStreams      uint8
-	HTDelayedBlockAck  bool
+	// Device supports Low Density Parity Check codes.
+	RxLDPC bool
+
+	// Device supports 40MHz channels, in addition to 20MHz channels.
+	HT2040 bool
+
+	// Device supports greenfield (802.11n-only) mode, in which a/b/g frames
+	// will be ignored.
+	RxGreenfield bool
+
+	// Device supports short guard intervals in 20MHz channels.
+	RxHT20SGI bool
+
+	// Device supports short guard intervals in 40MHz channels.
+	RxHT40SGI bool
+
+	// Device supports Space-Time Block Coding transmission.
+	TxSTBC bool
+
+	// Number of STBC receive streams supported by the device.  Valid values
+	// are 0-3.
+	RxSTBCStreams uint8
+
+	// Device supports delayed Block Ack frames when acknowledging an
+	// A-MPDU.
+	HTDelayedBlockAck bool
+
+	// Device supports long (7935 bytes) maximum A-MSDU length, compared to
+	// standard 3839 bytes.
 	LongMaxAMSDULength bool
-	DSSSCCKHT40        bool
+
+	// Device supports DSSS/CCK in 40MHz channels.
+	DSSSCCKHT40 bool
+
+	// (2.4GHz) Band cannot tolerate 40MHz channels because someone has
+	// requested it support 20MHz channels.
 	FortyMhzIntolerant bool
+
+	// Device supports L-SIG (non-HT) Transmit Oppportunity protection.
 	LSIGTxOPProtection bool
+
+	// Maximum receivable A-MPDU (Aggregated MAC Protocol Data Unit) frame
+	// size.
+	MaxRxAMPDULength int
+}
+
+// Format implements the fmt.Formatter interface (on a pointer receiver).  We
+// need this because the BandAttributes struct contains a pointer to a
+// HTCapabilities struct, and printing the former out doesn't descend into the
+// latter without this.
+func (cap *HTCapabilities) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 'v':
+		if s.Flag('+') {
+			fmt.Fprintf(s, "&%+v", *cap)
+		} else if s.Flag('#') {
+			fmt.Fprintf(s, "&%#v", *cap)
+		} else {
+			fmt.Fprintf(s, "&%v", *cap)
+		}
+	case 's':
+		fmt.Fprintf(s, "&%s", *cap)
+	}
 }
 
 // FrequencyAttrs represents the attributes of a WiFi frequency/channel.

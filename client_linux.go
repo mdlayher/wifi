@@ -562,20 +562,25 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 	for _, attr := range attrs {
 		switch attr.Type {
 		case nl80211.BandAttrHtCapa:
-			ba.HTCapabilities = decodeHTCapabilities(nlenc.Uint16(attr.Data))
+			ba.HTCapabilities = decodeHTCapabilities(ba.HTCapabilities, nlenc.Uint16(attr.Data))
 
 		case nl80211.BandAttrHtAmpduFactor:
 			exponent := nlenc.Uint8(attr.Data)
 			// The exponent comes from three bits of OTA data, but
 			// netlink gives it to us as an 8-bit value.
 			if exponent < 4 {
-				ba.MaxRxAMPDULength = (1 << (13 + exponent)) - 1
+				// If we haven't seen BandAttrHtCapa yet, we
+				// need to create the struct first.
+				if ba.HTCapabilities == nil {
+					ba.HTCapabilities = new(HTCapabilities)
+				}
+				ba.HTCapabilities.MaxRxAMPDULength = (1 << (13 + exponent)) - 1
 			}
 
 		case nl80211.BandAttrHtAmpduDensity:
 			spacing := nlenc.Uint8(attr.Data)
 			if spacing > 0 {
-				ba.MaxRxAMPDUSpacing = (1 << (spacing - 1)) * time.Microsecond / 4
+				ba.MinRxAMPDUSpacing = (1 << (spacing - 1)) * time.Microsecond / 4
 			}
 
 		case nl80211.BandAttrHtMcsSet:
@@ -647,23 +652,29 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 	return nil
 }
 
-// decodeHTCapabilities parses a 16-bit integer into an HTCapabilities struct.
-func decodeHTCapabilities(cap uint16) *HTCapabilities {
-	return &HTCapabilities{
-		RxLDPC:             cap&(1<<0) != 0,
-		HT2040:             cap&(1<<1) != 0,
-		SMPowerSave:        uint8((cap >> 2) & 0x3),
-		RxGreenfield:       cap&(1<<4) != 0,
-		RxHT20SGI:          cap&(1<<5) != 0,
-		RxHT40SGI:          cap&(1<<6) != 0,
-		TxSTBC:             cap&(1<<7) != 0,
-		RxSTBCStreams:      uint8((cap >> 8) & 0x3),
-		HTDelayedBlockAck:  cap&(1<<10) != 0,
-		LongMaxAMSDULength: cap&(1<<11) != 0,
-		DSSSCCKHT40:        cap&(1<<12) != 0,
-		FortyMhzIntolerant: cap&(1<<14) != 0,
-		LSIGTxOPProtection: cap&(1<<15) != 0,
+// decodeHTCapabilities parses a 16-bit integer into an HTCapabilities struct
+// based on information from an HT Capabilities Info field (BandAttrHtCapa).
+// Create a new one if nil is passed in, but allow for the struct to have other
+// fields already set.
+func decodeHTCapabilities(htcap *HTCapabilities, cap uint16) *HTCapabilities {
+	if htcap == nil {
+		htcap = new(HTCapabilities)
 	}
+
+	htcap.RxLDPC = cap&(1<<0) != 0
+	htcap.HT2040 = cap&(1<<1) != 0
+	htcap.RxGreenfield = cap&(1<<4) != 0
+	htcap.RxHT20SGI = cap&(1<<5) != 0
+	htcap.RxHT40SGI = cap&(1<<6) != 0
+	htcap.TxSTBC = cap&(1<<7) != 0
+	htcap.RxSTBCStreams = uint8((cap >> 8) & 0x3)
+	htcap.HTDelayedBlockAck = cap&(1<<10) != 0
+	htcap.LongMaxAMSDULength = cap&(1<<11) != 0
+	htcap.DSSSCCKHT40 = cap&(1<<12) != 0
+	htcap.FortyMhzIntolerant = cap&(1<<14) != 0
+	htcap.LSIGTxOPProtection = cap&(1<<15) != 0
+
+	return htcap
 }
 
 // parseStationInfo parses StationInfo attributes from a byte slice of
