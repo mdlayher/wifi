@@ -323,25 +323,6 @@ type HTCapabilities struct {
 	MaxRxAMPDULength int
 }
 
-// Format implements the fmt.Formatter interface (on a pointer receiver).  We
-// need this because the BandAttributes struct contains a pointer to a
-// HTCapabilities struct, and printing the former out doesn't descend into the
-// latter without this.
-func (cap *HTCapabilities) Format(s fmt.State, verb rune) {
-	switch verb {
-	case 'v':
-		if s.Flag('+') {
-			fmt.Fprintf(s, "&%+v", *cap)
-		} else if s.Flag('#') {
-			fmt.Fprintf(s, "&%#v", *cap)
-		} else {
-			fmt.Fprintf(s, "&%v", *cap)
-		}
-	case 's':
-		fmt.Fprintf(s, "&%s", *cap)
-	}
-}
-
 // FrequencyAttrs represents the attributes of a WiFi frequency/channel.
 type FrequencyAttrs struct {
 	// Frequency is the radio frequency in MHz.
