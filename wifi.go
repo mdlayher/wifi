@@ -280,18 +280,18 @@ type HTCapabilities struct {
 	// Device supports Low Density Parity Check codes.
 	RxLDPC bool
 
-	// Device supports 40MHz channels, in addition to 20MHz channels.
-	HT2040 bool
+	// Device supports 40MHz channels (in addition to 20MHz channels).
+	CW40 bool
 
-	// Device supports greenfield (802.11n-only) mode, in which a/b/g frames
-	// will be ignored.
-	RxGreenfield bool
+	// Device supports HT Greenfield (802.11n-only) mode, in which a/b/g
+	// frames will be ignored.
+	HTGreenfield bool
 
 	// Device supports short guard intervals in 20MHz channels.
-	RxHT20SGI bool
+	SGI20 bool
 
 	// Device supports short guard intervals in 40MHz channels.
-	RxHT40SGI bool
+	SGI40 bool
 
 	// Device supports Space-Time Block Coding transmission.
 	TxSTBC bool

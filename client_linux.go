@@ -662,10 +662,10 @@ func decodeHTCapabilities(htcap *HTCapabilities, cap uint16) *HTCapabilities {
 	}
 
 	htcap.RxLDPC = cap&(1<<0) != 0
-	htcap.HT2040 = cap&(1<<1) != 0
-	htcap.RxGreenfield = cap&(1<<4) != 0
-	htcap.RxHT20SGI = cap&(1<<5) != 0
-	htcap.RxHT40SGI = cap&(1<<6) != 0
+	htcap.CW40 = cap&(1<<1) != 0
+	htcap.HTGreenfield = cap&(1<<4) != 0
+	htcap.SGI20 = cap&(1<<5) != 0
+	htcap.SGI40 = cap&(1<<6) != 0
 	htcap.TxSTBC = cap&(1<<7) != 0
 	htcap.RxSTBCStreams = uint8((cap >> 8) & 0x3)
 	htcap.HTDelayedBlockAck = cap&(1<<10) != 0
