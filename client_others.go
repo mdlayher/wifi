@@ -31,3 +31,9 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return nil, errUnimplemented
 }
+
+// VendorCommand always returns an error.
+func (c *client) VendorCommand(ifi *Interface, vendorOUI uint32, subcommand uint32,
+	data []byte) ([]byte, error) {
+	return nil, errUnimplemented
+}

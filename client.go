@@ -50,10 +50,18 @@ func (c *Client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return c.c.StationInfo(ifi)
 }
 
+// VendorCommand executes a vendor command and returns the result
+func (c *Client) VendorCommand(ifi *Interface, vendorOUI, subcommand uint32,
+	data []byte) ([]byte, error) {
+	return c.c.VendorCommand(ifi, vendorOUI, subcommand, data)
+}
+
 // An osClient is the operating system-specific implementation of Client.
 type osClient interface {
 	Close() error
 	Interfaces() ([]*Interface, error)
 	BSS(ifi *Interface) (*BSS, error)
 	StationInfo(ifi *Interface) ([]*StationInfo, error)
+	VendorCommand(ifi *Interface, vendorOUI, subcommand uint32,
+		data []byte) ([]byte, error)
 }

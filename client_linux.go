@@ -164,6 +164,70 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return stations, nil
 }
 
+// VendorCommand executes a vendor specific operation for the specified
+// Interface and returns any output data
+func (c *client) VendorCommand(ifi *Interface, vendorOUI, subcommand uint32,
+	data []byte) ([]byte, error) {
+
+	b, err := netlink.MarshalAttributes([]netlink.Attribute{
+		{
+			Type: nl80211.AttrIfindex,
+			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+		},
+		{
+			Type: nl80211.AttrVendorId,
+			Data: nlenc.Uint32Bytes(vendorOUI),
+		},
+		{
+			Type: nl80211.AttrVendorSubcmd,
+			Data: nlenc.Uint32Bytes(subcommand),
+		},
+		{
+			Type: nl80211.AttrVendorData,
+			Data: data,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdVendor,
+			Version: c.familyVersion,
+		},
+		Data: b,
+	}
+
+	flags := netlink.Request
+
+	msgs, err := c.c.Execute(req, c.familyID, flags)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(msgs) == 0 {
+		return nil, os.ErrNotExist
+	}
+
+	if len(msgs) > 1 {
+		return nil, errors.New("too many messages")
+	}
+
+	if err := c.checkMessages(msgs, nl80211.CmdVendor); err != nil {
+		return nil, err
+	}
+
+	result, err := parseVendor(msgs)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // checkMessages verifies that response messages from generic netlink contain
 // the command and family version we expect.
 func (c *client) checkMessages(msgs []genetlink.Message, command uint8) error {
@@ -240,6 +304,23 @@ func (ifi *Interface) parseAttributes(attrs []netlink.Attribute) error {
 	}
 
 	return nil
+}
+
+// parseVendor returns the contents of the VendorData attribute (if any) from
+// the supplied messages.
+func parseVendor(msgs []genetlink.Message) ([]byte, error) {
+	for _, msg := range msgs {
+		attrs, err := netlink.UnmarshalAttributes(msg.Data)
+		if err != nil {
+			return nil, err
+		}
+		for _, a := range attrs {
+			if a.Type == nl80211.AttrVendorData {
+				return a.Data, nil
+			}
+		}
+	}
+	return nil, os.ErrNotExist
 }
 
 // parseBSS parses a single BSS with a status attribute from nl80211 BSS messages.
