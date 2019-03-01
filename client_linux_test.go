@@ -80,7 +80,7 @@ func TestLinux_clientInterfacesOK(t *testing.T) {
 		},
 	}
 
-	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	const flags = netlink.Request | netlink.Dump
 
 	c := testClient(t, genltest.CheckRequest(familyID, nl80211.CmdGetInterface, flags,
 		mustMessages(t, nl80211.CmdNewInterface, want),
@@ -232,7 +232,7 @@ func TestLinux_clientBSSOK(t *testing.T) {
 		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
 	}
 
-	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	const flags = netlink.Request | netlink.Dump
 
 	msgsFn := mustMessages(t, nl80211.CmdNewScanResults, want)
 
@@ -343,7 +343,7 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
 	}
 
-	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	const flags = netlink.Request | netlink.Dump
 
 	msgsFn := mustMessages(t, nl80211.CmdNewStation, want)
 
