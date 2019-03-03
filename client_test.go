@@ -70,7 +70,7 @@ func mustNew(t *testing.T) *Client {
 }
 
 func execN(wg *sync.WaitGroup, c *Client, n int, expect []string) {
-	names := make(map[string]int, 0)
+	names := make(map[string]int)
 
 	for i := 0; i < n; i++ {
 		ifis, err := c.Interfaces()
