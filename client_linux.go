@@ -13,7 +13,7 @@ import (
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/mdlayher/wifi/internal/nl80211"
+	"github.com/bluwireless/wifi/internal/nl80211"
 )
 
 // Errors which may occur when interacting with generic netlink.
