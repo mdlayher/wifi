@@ -5,7 +5,6 @@ package wifi
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"time"
