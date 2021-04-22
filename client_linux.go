@@ -19,16 +19,11 @@ import (
 
 // Errors which may occur when interacting with generic netlink.
 var (
-<<<<<<< HEAD
 	errMultipleMessages     	 = errors.New("expected only one generic netlink message")
 	errInvalidCommand       	 = errors.New("invalid generic netlink response command")
 	errInvalidFamilyVersion 	 = errors.New("invalid generic netlink response family version")
-	errMissingMulticastGroupScan = errors.New("scan multicast group unavailable")
-	errScanAborted 				 = errors.New("scan aborted")
-=======
-	errInvalidCommand       = errors.New("invalid generic netlink response command")
-	errInvalidFamilyVersion = errors.New("invalid generic netlink response family version")
->>>>>>> upstream/master
+	errMissingMulticastGroupScan	 = errors.New("scan multicast group unavailable")
+	errScanAborted 			 = errors.New("scan aborted")
 )
 
 var _ osClient = &client{}
@@ -261,10 +256,7 @@ func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 //	flags := netlink.HeaderFlagsRequest
 //}
 
-// StationInfo requests that nl80211 return station info for the specified
-=======
 // StationInfo requests that nl80211 return all station info for the specified
->>>>>>> upstream/master
 // Interface.
 func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	b, err := netlink.MarshalAttributes(ifi.idAttrs())
