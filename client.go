@@ -3,6 +3,7 @@ package wifi
 import (
 	"fmt"
 	"runtime"
+	"time"
 )
 
 var (
@@ -40,6 +41,21 @@ func (c *Client) Connect(ifi *Interface, ssid string) error {
 	return c.c.Connect(ifi, ssid)
 }
 
+// SetType sets the interface type.
+func (c *Client) SetType(ifi *Interface, ifType InterfaceType) error {
+	return c.c.SetType(ifi, ifType)
+}
+
+// JoinIBSSExt joins the interface to the specified IBSS (ad-hoc) network with the specified parameters.
+func (c *Client) JoinIBSS(ifi *Interface, ssid string, frequencyMHz int, chanWidth ChanWidth, beaconInterval time.Duration, basicRate, mCastRate int) error {
+	return c.c.JoinIBSS(ifi, ssid, frequencyMHz, chanWidth, beaconInterval, basicRate, mCastRate)
+}
+
+// LeaveIBSS makes the interface leave the IBSS (ad-hoc) network.
+func (c *Client) LeaveIBSS(ifi *Interface) error {
+	return c.c.LeaveIBSS(ifi)
+}
+
 // Interfaces returns a list of the system's WiFi network interfaces.
 func (c *Client) Interfaces() ([]*Interface, error) {
 	return c.c.Interfaces()
@@ -62,4 +78,7 @@ type osClient interface {
 	BSS(ifi *Interface) (*BSS, error)
 	StationInfo(ifi *Interface) ([]*StationInfo, error)
 	Connect(ifi *Interface, ssid string) error
+	SetType(ifi *Interface, ifType InterfaceType) error
+	JoinIBSS(ifi *Interface, ssid string, frequencyMHz int, chanWidth ChanWidth, beaconInterval time.Duration, basicRate, mCastRate int) error
+	LeaveIBSS(ifi *Interface) error
 }

@@ -122,6 +122,156 @@ func (c *client) Connect(ifi *Interface, ssid string) error {
 	return nil
 }
 
+// SetType sets the interface type.
+func (c *client) SetType(ifi *Interface, ifType InterfaceType) error {
+	rawType := make([]byte, 4)
+	nlenc.PutUint32(rawType, uint32(ifType))
+
+	b, err := netlink.MarshalAttributes(
+		[]netlink.Attribute{
+			{
+				Type: nl80211.AttrIfindex,
+				Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+			},
+
+			{
+				Type: nl80211.AttrIftype,
+				Data: rawType,
+			},
+		})
+	if err != nil {
+		return err
+	}
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdSetInterface,
+			Version: c.familyVersion,
+		},
+		Data: b,
+	}
+
+	flags := netlink.Request | netlink.Acknowledge
+	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
+		return err
+	}
+	return nil
+}
+
+type ChanWidth int32
+
+const (
+	ChanWidth20Noht = nl80211.ChanWidth20Noht
+	ChanWidth20     = nl80211.ChanWidth20
+	ChanWidth40     = nl80211.ChanWidth40
+	ChanWidth80     = nl80211.ChanWidth80
+	ChanWidth80p80  = nl80211.ChanWidth80p80
+	ChanWidth160    = nl80211.ChanWidth160
+	ChanWidth5      = nl80211.ChanWidth5
+	ChanWidth10     = nl80211.ChanWidth10
+)
+
+// JoinIBSS joins the interface to the specified IBSS (ad-hoc) network with the specified parameters.
+func (c *client) JoinIBSS(ifi *Interface, ssid string, frequencyMHz int, chanWidth ChanWidth, beaconInterval time.Duration, basicRate, mCastRate int) error {
+	rawFreq := make([]byte, 4)
+	nlenc.PutUint32(rawFreq, uint32(frequencyMHz))
+
+	rawChannelWidth := make([]byte, 4)
+	nlenc.PutUint32(rawChannelWidth, uint32(chanWidth))
+
+	rawBeaconInterval := make([]byte, 4)
+	nlenc.PutUint32(rawBeaconInterval, uint32(beaconInterval.Milliseconds()))
+
+	rawMcastRate := make([]byte, 4)
+	nlenc.PutUint32(rawMcastRate, uint32(mCastRate))
+
+	// Ask nl80211 to connect to the specified SSID.
+	b, err := netlink.MarshalAttributes(
+		[]netlink.Attribute{
+			{
+				Type: nl80211.AttrIfindex,
+				Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+			},
+
+			{
+				Type: nl80211.AttrSsid,
+				Data: []byte(ssid),
+			},
+
+			{
+				Type: nl80211.AttrWiphyFreq,
+				Data: rawFreq,
+			},
+
+			{
+				Type: nl80211.AttrChannelWidth,
+				Data: rawChannelWidth,
+			},
+
+			{
+				Type: nl80211.AttrFreqFixed,
+			},
+
+			{
+				Type: nl80211.AttrBeaconInterval,
+				Data: rawBeaconInterval,
+			},
+
+			{
+				Type: nl80211.AttrBssBasicRates,
+				Data: []byte{byte(basicRate)},
+			},
+
+			{
+				Type: nl80211.AttrMcastRate,
+				Data: rawMcastRate,
+			},
+		})
+	if err != nil {
+		return err
+	}
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdJoinIbss,
+			Version: c.familyVersion,
+		},
+		Data: b,
+	}
+
+	flags := netlink.Request | netlink.Acknowledge
+	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
+		return err
+	}
+	return nil
+}
+
+// LeaveIBSS makes the interface leave the IBSS (ad-hoc) network.
+func (c *client) LeaveIBSS(ifi *Interface) error {
+	// Ask nl80211 to leave.
+	b, err := netlink.MarshalAttributes(
+		[]netlink.Attribute{
+			{
+				Type: nl80211.AttrIfindex,
+				Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+			},
+		})
+	if err != nil {
+		return err
+	}
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdLeaveIbss,
+			Version: c.familyVersion,
+		},
+		Data: b,
+	}
+
+	flags := netlink.Request | netlink.Acknowledge
+	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
+		return err
+	}
+	return nil
+}
+
 // BSS requests that nl80211 return the BSS for the specified Interface.
 func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	b, err := netlink.MarshalAttributes(ifi.idAttrs())
