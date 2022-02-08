@@ -12,4 +12,4 @@
 //  https://github.com/xlab/nl80211
 package nl80211
 
-//go:generate cgogen -out ../ -nocgo nl80211.yml
+//go:generate c-for-go -out ../ -nocgo nl80211.yml
