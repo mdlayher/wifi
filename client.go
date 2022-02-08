@@ -40,6 +40,11 @@ func (c *Client) Connect(ifi *Interface, ssid string) error {
 	return c.c.Connect(ifi, ssid)
 }
 
+// Connect starts connecting the interface to the specified ssid using WPA.
+func (c *Client) ConnectWPAPSK(ifi *Interface, ssid string, psk string) error {
+	return c.c.ConnectWPAPSK(ifi, ssid, psk)
+}
+
 // Interfaces returns a list of the system's WiFi network interfaces.
 func (c *Client) Interfaces() ([]*Interface, error) {
 	return c.c.Interfaces()
@@ -62,4 +67,5 @@ type osClient interface {
 	BSS(ifi *Interface) (*BSS, error)
 	StationInfo(ifi *Interface) ([]*StationInfo, error)
 	Connect(ifi *Interface, ssid string) error
+	ConnectWPAPSK(ifi *Interface, ssid string, psk string) error
 }
