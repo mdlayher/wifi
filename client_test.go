@@ -1,6 +1,7 @@
 package wifi
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -56,8 +57,8 @@ func TestClientIntegrationConcurrent(t *testing.T) {
 func mustNew(t *testing.T) *Client {
 	c, err := New()
 	if err != nil {
-		if os.IsNotExist(err) {
-			t.Skip("wifi data not available, skipping")
+		if errors.Is(err, os.ErrNotExist) {
+			t.Skipf("skipping, nl80211 not found: %v", err)
 		}
 		if err == errUnimplemented {
 			t.Skip(err)
