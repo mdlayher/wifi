@@ -420,7 +420,6 @@ func parseStationInfo(b []byte) (*StationInfo, error) {
 
 	var info StationInfo
 	for _, a := range attrs {
-
 		switch a.Type {
 		case nl80211.AttrMac:
 			info.HardwareAddr = net.HardwareAddr(a.Data)

@@ -8,11 +8,9 @@ import (
 	"runtime"
 )
 
-var (
-	// errUnimplemented is returned by all functions on platforms that
-	// do not have package wifi implemented.
-	errUnimplemented = fmt.Errorf("wifi: not implemented on %s", runtime.GOOS)
-)
+// errUnimplemented is returned by all functions on platforms that
+// do not have package wifi implemented.
+var errUnimplemented = fmt.Errorf("wifi: not implemented on %s", runtime.GOOS)
 
 // A conn is the no-op implementation of a netlink sockets connection.
 type client struct{}

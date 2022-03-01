@@ -305,7 +305,6 @@ func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
 }
 
 func TestLinux_clientStationInfoOK(t *testing.T) {
-
 	want := []*StationInfo{
 		{
 			HardwareAddr:       net.HardwareAddr{0xb8, 0x27, 0xeb, 0xd5, 0xf3, 0xef},
