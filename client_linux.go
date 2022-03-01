@@ -12,12 +12,11 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang.org/x/crypto/pbkdf2"
-
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
 	"github.com/mdlayher/wifi/internal/nl80211"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 // Errors which may occur when interacting with generic netlink.
@@ -25,8 +24,6 @@ var (
 	errInvalidCommand       = errors.New("invalid generic netlink response command")
 	errInvalidFamilyVersion = errors.New("invalid generic netlink response family version")
 )
-
-var _ osClient = &client{}
 
 // A client is the Linux implementation of osClient, which makes use of
 // netlink, generic netlink, and nl80211 to provide access to WiFi device
