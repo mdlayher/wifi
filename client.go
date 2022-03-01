@@ -41,7 +41,7 @@ func (c *Client) Connect(ifi *Interface, ssid string) error {
 }
 
 // Connect starts connecting the interface to the specified ssid using WPA.
-func (c *Client) ConnectWPAPSK(ifi *Interface, ssid string, psk string) error {
+func (c *Client) ConnectWPAPSK(ifi *Interface, ssid, psk string) error {
 	return c.c.ConnectWPAPSK(ifi, ssid, psk)
 }
 
@@ -67,5 +67,5 @@ type osClient interface {
 	BSS(ifi *Interface) (*BSS, error)
 	StationInfo(ifi *Interface) ([]*StationInfo, error)
 	Connect(ifi *Interface, ssid string) error
-	ConnectWPAPSK(ifi *Interface, ssid string, psk string) error
+	ConnectWPAPSK(ifi *Interface, ssid, psk string) error
 }
