@@ -4,11 +4,14 @@ package wifi
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"errors"
 	"net"
 	"os"
 	"time"
 	"unicode/utf8"
+
+	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
@@ -98,10 +101,70 @@ func (c *client) Connect(ifi *Interface, ssid string) error {
 				Type: nl80211.AttrIfindex,
 				Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
 			},
-
 			{
 				Type: nl80211.AttrSsid,
 				Data: []byte(ssid),
+			},
+		})
+	if err != nil {
+		return err
+	}
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdConnect,
+			Version: c.familyVersion,
+		},
+		Data: b,
+	}
+
+	flags := netlink.Request | netlink.Acknowledge
+	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
+		return err
+	}
+	return nil
+}
+
+func WPAPassphrase(ssid string, psk string) []byte {
+	pskBinary := pbkdf2.Key([]byte(psk), []byte(ssid), 4096, 32, sha1.New)
+	return pskBinary
+}
+
+// ConnectWPAPSK starts connecting the interface to the specified ssid using WPA
+func (c *client) ConnectWPAPSK(ifi *Interface, ssid string, psk string) error {
+	// Ask nl80211 to connect to the specified SSID.
+	b, err := netlink.MarshalAttributes(
+		[]netlink.Attribute{
+			{
+				Type: nl80211.AttrIfindex,
+				Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+			},
+			{
+				Type: nl80211.AttrSsid,
+				Data: []byte(ssid),
+			},
+			{
+				Type: nl80211.AttrWpaVersions,
+				Data: nlenc.Uint32Bytes(nl80211.WpaVersion2),
+			},
+			{
+				Type: nl80211.AttrCipherSuiteGroup,
+				Data: nlenc.Uint32Bytes(uint32(0xfac04)),
+			},
+			{
+				Type: nl80211.AttrCipherSuitesPairwise,
+				Data: nlenc.Uint32Bytes(uint32(0xfac04)),
+			},
+			{
+				Type: nl80211.AttrAkmSuites,
+				Data: nlenc.Uint32Bytes(uint32(0xfac02)),
+			},
+			{
+				Type: nl80211.AttrWant1x4wayHs,
+				Data: nil,
+			},
+			{
+				Type: nl80211.AttrPmk,
+				Data: WPAPassphrase(ssid, psk),
 			},
 		})
 	if err != nil {
