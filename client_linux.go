@@ -122,6 +122,34 @@ func (c *client) Connect(ifi *Interface, ssid string) error {
 	return nil
 }
 
+// Disconnect disconnects the interface.
+func (c *client) Disconnect(ifi *Interface) error {
+	// Ask nl80211 to disconnect.
+	b, err := netlink.MarshalAttributes([]netlink.Attribute{
+		{
+			Type: nl80211.AttrIfindex,
+			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdDisconnect,
+			Version: c.familyVersion,
+		},
+		Data: b,
+	}
+
+	flags := netlink.Request | netlink.Acknowledge
+	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ConnectWPAPSK starts connecting the interface to the specified ssid using WPA
 func (c *client) ConnectWPAPSK(ifi *Interface, ssid string, psk string) error {
 	// Ask nl80211 to connect to the specified SSID.
