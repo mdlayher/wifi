@@ -28,6 +28,11 @@ func (c *Client) Connect(ifi *Interface, ssid string) error {
 	return c.c.Connect(ifi, ssid)
 }
 
+// Dissconnect disconnects the interface.
+func (c *Client) Disconnect(ifi *Interface) error {
+	return c.c.Disconnect(ifi)
+}
+
 // Connect starts connecting the interface to the specified ssid using WPA.
 func (c *Client) ConnectWPAPSK(ifi *Interface, ssid, psk string) error {
 	return c.c.ConnectWPAPSK(ifi, ssid, psk)
