@@ -20,7 +20,7 @@ import (
 	"github.com/mdlayher/genetlink/genltest"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/mdlayher/wifi/internal/nl80211"
+	"golang.org/x/sys/unix"
 )
 
 func TestLinux_clientInterfacesBadResponseCommand(t *testing.T) {
@@ -28,7 +28,7 @@ func TestLinux_clientInterfacesBadResponseCommand(t *testing.T) {
 		return []genetlink.Message{{
 			Header: genetlink.Header{
 				// Wrong response command
-				Command: nl80211.CmdGetInterface,
+				Command: unix.NL80211_CMD_GET_INTERFACE,
 			},
 		}}, nil
 	})
@@ -47,7 +47,7 @@ func TestLinux_clientInterfacesBadResponseFamilyVersion(t *testing.T) {
 		return []genetlink.Message{{
 			Header: genetlink.Header{
 				// Wrong family version
-				Command: nl80211.CmdNewInterface,
+				Command: unix.NL80211_CMD_NEW_INTERFACE,
 				Version: 100,
 			},
 		}}, nil
@@ -83,8 +83,8 @@ func TestLinux_clientInterfacesOK(t *testing.T) {
 
 	const flags = netlink.Request | netlink.Dump
 
-	c := testClient(t, genltest.CheckRequest(familyID, nl80211.CmdGetInterface, flags,
-		mustMessages(t, nl80211.CmdNewInterface, want),
+	c := testClient(t, genltest.CheckRequest(familyID, unix.NL80211_CMD_GET_INTERFACE, flags,
+		mustMessages(t, unix.NL80211_CMD_NEW_INTERFACE, want),
 	))
 
 	got, err := c.Interfaces()
@@ -102,10 +102,10 @@ func TestLinux_clientBSSMissingBSSAttributeIsNotExist(t *testing.T) {
 		// One message without BSS attribute
 		return []genetlink.Message{{
 			Header: genetlink.Header{
-				Command: nl80211.CmdNewScanResults,
+				Command: unix.NL80211_CMD_NEW_SCAN_RESULTS,
 			},
 			Data: mustMarshalAttributes([]netlink.Attribute{{
-				Type: nl80211.AttrIfindex,
+				Type: unix.NL80211_ATTR_IFINDEX,
 				Data: nlenc.Uint32Bytes(1),
 			}}),
 		}}, nil
@@ -124,13 +124,13 @@ func TestLinux_clientBSSMissingBSSStatusAttributeIsNotExist(t *testing.T) {
 	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
 		return []genetlink.Message{{
 			Header: genetlink.Header{
-				Command: nl80211.CmdNewScanResults,
+				Command: unix.NL80211_CMD_NEW_SCAN_RESULTS,
 			},
 			// BSS attribute, but no nested status attribute for the "active" BSS
 			Data: mustMarshalAttributes([]netlink.Attribute{{
-				Type: nl80211.AttrBss,
+				Type: unix.NL80211_ATTR_BSS,
 				Data: mustMarshalAttributes([]netlink.Attribute{{
-					Type: nl80211.BssBssid,
+					Type: unix.NL80211_BSS_BSSID,
 					Data: net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
 				}}),
 			}}),
@@ -171,31 +171,31 @@ func TestLinux_clientBSSOKSkipMissingStatus(t *testing.T) {
 			// others should be ignored
 			{
 				Header: genetlink.Header{
-					Command: nl80211.CmdNewScanResults,
+					Command: unix.NL80211_CMD_NEW_SCAN_RESULTS,
 				},
 				Data: mustMarshalAttributes([]netlink.Attribute{{
-					Type: nl80211.AttrBss,
+					Type: unix.NL80211_ATTR_BSS,
 					// Does not contain BSS information and status
 					Data: mustMarshalAttributes([]netlink.Attribute{{
-						Type: nl80211.BssBssid,
+						Type: unix.NL80211_BSS_BSSID,
 						Data: net.HardwareAddr{0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa},
 					}}),
 				}}),
 			},
 			{
 				Header: genetlink.Header{
-					Command: nl80211.CmdNewScanResults,
+					Command: unix.NL80211_CMD_NEW_SCAN_RESULTS,
 				},
 				Data: mustMarshalAttributes([]netlink.Attribute{{
-					Type: nl80211.AttrBss,
+					Type: unix.NL80211_ATTR_BSS,
 					// Contains BSS information and status
 					Data: mustMarshalAttributes([]netlink.Attribute{
 						{
-							Type: nl80211.BssBssid,
+							Type: unix.NL80211_BSS_BSSID,
 							Data: want,
 						},
 						{
-							Type: nl80211.BssStatus,
+							Type: unix.NL80211_BSS_STATUS,
 							Data: nlenc.Uint32Bytes(uint32(BSSStatusAssociated)),
 						},
 					}),
@@ -235,9 +235,9 @@ func TestLinux_clientBSSOK(t *testing.T) {
 
 	const flags = netlink.Request | netlink.Dump
 
-	msgsFn := mustMessages(t, nl80211.CmdNewScanResults, want)
+	msgsFn := mustMessages(t, unix.NL80211_CMD_NEW_SCAN_RESULTS, want)
 
-	c := testClient(t, genltest.CheckRequest(familyID, nl80211.CmdGetScan, flags,
+	c := testClient(t, genltest.CheckRequest(familyID, unix.NL80211_CMD_GET_SCAN, flags,
 		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
 			// Also verify that the correct interface attributes are
 			// present in the request.
@@ -270,10 +270,10 @@ func TestLinux_clientStationInfoMissingAttributeIsNotExist(t *testing.T) {
 		// One message without station info attribute
 		return []genetlink.Message{{
 			Header: genetlink.Header{
-				Command: nl80211.CmdNewStation,
+				Command: unix.NL80211_CMD_NEW_STATION,
 			},
 			Data: mustMarshalAttributes([]netlink.Attribute{{
-				Type: nl80211.AttrIfindex,
+				Type: unix.NL80211_ATTR_IFINDEX,
 				Data: nlenc.Uint32Bytes(1),
 			}}),
 		}}, nil
@@ -345,9 +345,9 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 
 	const flags = netlink.Request | netlink.Dump
 
-	msgsFn := mustMessages(t, nl80211.CmdNewStation, want)
+	msgsFn := mustMessages(t, unix.NL80211_CMD_NEW_STATION, want)
 
-	c := testClient(t, genltest.CheckRequest(familyID, nl80211.CmdGetStation, flags,
+	c := testClient(t, genltest.CheckRequest(familyID, unix.NL80211_CMD_GET_STATION, flags,
 		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
 			// Also verify that the correct interface attributes are
 			// present in the request.
@@ -394,7 +394,7 @@ const familyID = 26
 func testClient(t *testing.T, fn genltest.Func) *client {
 	family := genetlink.Family{
 		ID:      familyID,
-		Name:    nl80211.GenlName,
+		Name:    unix.NL80211_GENL_NAME,
 		Version: 1,
 	}
 
@@ -482,13 +482,13 @@ var (
 
 func (ifi *Interface) attributes() []netlink.Attribute {
 	return []netlink.Attribute{
-		{Type: nl80211.AttrIfindex, Data: nlenc.Uint32Bytes(uint32(ifi.Index))},
-		{Type: nl80211.AttrIfname, Data: nlenc.Bytes(ifi.Name)},
-		{Type: nl80211.AttrMac, Data: ifi.HardwareAddr},
-		{Type: nl80211.AttrWiphy, Data: nlenc.Uint32Bytes(uint32(ifi.PHY))},
-		{Type: nl80211.AttrIftype, Data: nlenc.Uint32Bytes(uint32(ifi.Type))},
-		{Type: nl80211.AttrWdev, Data: nlenc.Uint64Bytes(uint64(ifi.Device))},
-		{Type: nl80211.AttrWiphyFreq, Data: nlenc.Uint32Bytes(uint32(ifi.Frequency))},
+		{Type: unix.NL80211_ATTR_IFINDEX, Data: nlenc.Uint32Bytes(uint32(ifi.Index))},
+		{Type: unix.NL80211_ATTR_IFNAME, Data: nlenc.Bytes(ifi.Name)},
+		{Type: unix.NL80211_ATTR_MAC, Data: ifi.HardwareAddr},
+		{Type: unix.NL80211_ATTR_WIPHY, Data: nlenc.Uint32Bytes(uint32(ifi.PHY))},
+		{Type: unix.NL80211_ATTR_IFTYPE, Data: nlenc.Uint32Bytes(uint32(ifi.Type))},
+		{Type: unix.NL80211_ATTR_WDEV, Data: nlenc.Uint64Bytes(uint64(ifi.Device))},
+		{Type: unix.NL80211_ATTR_WIPHY_FREQ, Data: nlenc.Uint32Bytes(uint32(ifi.Frequency))},
 	}
 }
 
@@ -496,15 +496,15 @@ func (b *BSS) attributes() []netlink.Attribute {
 	return []netlink.Attribute{
 		// TODO(mdlayher): return more attributes for validation?
 		{
-			Type: nl80211.AttrBss,
+			Type: unix.NL80211_ATTR_BSS,
 			Data: mustMarshalAttributes([]netlink.Attribute{
-				{Type: nl80211.BssBssid, Data: b.BSSID},
-				{Type: nl80211.BssFrequency, Data: nlenc.Uint32Bytes(uint32(b.Frequency))},
-				{Type: nl80211.BssBeaconInterval, Data: nlenc.Uint16Bytes(uint16(b.BeaconInterval / 1024 / time.Microsecond))},
-				{Type: nl80211.BssSeenMsAgo, Data: nlenc.Uint32Bytes(uint32(b.LastSeen / time.Millisecond))},
-				{Type: nl80211.BssStatus, Data: nlenc.Uint32Bytes(uint32(b.Status))},
+				{Type: unix.NL80211_BSS_BSSID, Data: b.BSSID},
+				{Type: unix.NL80211_BSS_FREQUENCY, Data: nlenc.Uint32Bytes(uint32(b.Frequency))},
+				{Type: unix.NL80211_BSS_BEACON_INTERVAL, Data: nlenc.Uint16Bytes(uint16(b.BeaconInterval / 1024 / time.Microsecond))},
+				{Type: unix.NL80211_BSS_SEEN_MS_AGO, Data: nlenc.Uint32Bytes(uint32(b.LastSeen / time.Millisecond))},
+				{Type: unix.NL80211_BSS_STATUS, Data: nlenc.Uint32Bytes(uint32(b.Status))},
 				{
-					Type: nl80211.BssInformationElements,
+					Type: unix.NL80211_BSS_INFORMATION_ELEMENTS,
 					Data: marshalIEs([]ie{{
 						ID:   ieSSID,
 						Data: []byte(b.SSID),
@@ -519,36 +519,36 @@ func (s *StationInfo) attributes() []netlink.Attribute {
 	return []netlink.Attribute{
 		// TODO(mdlayher): return more attributes for validation?
 		{
-			Type: nl80211.AttrMac,
+			Type: unix.NL80211_ATTR_MAC,
 			Data: s.HardwareAddr,
 		},
 		{
-			Type: nl80211.AttrStaInfo,
+			Type: unix.NL80211_ATTR_STA_INFO,
 			Data: mustMarshalAttributes([]netlink.Attribute{
-				{Type: nl80211.StaInfoConnectedTime, Data: nlenc.Uint32Bytes(uint32(s.Connected.Seconds()))},
-				{Type: nl80211.StaInfoInactiveTime, Data: nlenc.Uint32Bytes(uint32(s.Inactive.Seconds() * 1000))},
-				{Type: nl80211.StaInfoRxBytes, Data: nlenc.Uint32Bytes(uint32(s.ReceivedBytes))},
-				{Type: nl80211.StaInfoRxBytes64, Data: nlenc.Uint64Bytes(uint64(s.ReceivedBytes))},
-				{Type: nl80211.StaInfoTxBytes, Data: nlenc.Uint32Bytes(uint32(s.TransmittedBytes))},
-				{Type: nl80211.StaInfoTxBytes64, Data: nlenc.Uint64Bytes(uint64(s.TransmittedBytes))},
-				{Type: nl80211.StaInfoSignal, Data: []byte{byte(int8(s.Signal))}},
-				{Type: nl80211.StaInfoRxPackets, Data: nlenc.Uint32Bytes(uint32(s.ReceivedPackets))},
-				{Type: nl80211.StaInfoTxPackets, Data: nlenc.Uint32Bytes(uint32(s.TransmittedPackets))},
-				{Type: nl80211.StaInfoTxRetries, Data: nlenc.Uint32Bytes(uint32(s.TransmitRetries))},
-				{Type: nl80211.StaInfoTxFailed, Data: nlenc.Uint32Bytes(uint32(s.TransmitFailed))},
-				{Type: nl80211.StaInfoBeaconLoss, Data: nlenc.Uint32Bytes(uint32(s.BeaconLoss))},
+				{Type: unix.NL80211_STA_INFO_CONNECTED_TIME, Data: nlenc.Uint32Bytes(uint32(s.Connected.Seconds()))},
+				{Type: unix.NL80211_STA_INFO_INACTIVE_TIME, Data: nlenc.Uint32Bytes(uint32(s.Inactive.Seconds() * 1000))},
+				{Type: unix.NL80211_STA_INFO_RX_BYTES, Data: nlenc.Uint32Bytes(uint32(s.ReceivedBytes))},
+				{Type: unix.NL80211_STA_INFO_RX_BYTES64, Data: nlenc.Uint64Bytes(uint64(s.ReceivedBytes))},
+				{Type: unix.NL80211_STA_INFO_TX_BYTES, Data: nlenc.Uint32Bytes(uint32(s.TransmittedBytes))},
+				{Type: unix.NL80211_STA_INFO_TX_BYTES64, Data: nlenc.Uint64Bytes(uint64(s.TransmittedBytes))},
+				{Type: unix.NL80211_STA_INFO_SIGNAL, Data: []byte{byte(int8(s.Signal))}},
+				{Type: unix.NL80211_STA_INFO_RX_PACKETS, Data: nlenc.Uint32Bytes(uint32(s.ReceivedPackets))},
+				{Type: unix.NL80211_STA_INFO_TX_PACKETS, Data: nlenc.Uint32Bytes(uint32(s.TransmittedPackets))},
+				{Type: unix.NL80211_STA_INFO_TX_RETRIES, Data: nlenc.Uint32Bytes(uint32(s.TransmitRetries))},
+				{Type: unix.NL80211_STA_INFO_TX_FAILED, Data: nlenc.Uint32Bytes(uint32(s.TransmitFailed))},
+				{Type: unix.NL80211_STA_INFO_BEACON_LOSS, Data: nlenc.Uint32Bytes(uint32(s.BeaconLoss))},
 				{
-					Type: nl80211.StaInfoRxBitrate,
+					Type: unix.NL80211_STA_INFO_RX_BITRATE,
 					Data: mustMarshalAttributes([]netlink.Attribute{
-						{Type: nl80211.RateInfoBitrate, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.ReceiveBitrate)))},
-						{Type: nl80211.RateInfoBitrate32, Data: nlenc.Uint32Bytes(bitrateAttr(s.ReceiveBitrate))},
+						{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.ReceiveBitrate)))},
+						{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.ReceiveBitrate))},
 					}),
 				},
 				{
-					Type: nl80211.StaInfoTxBitrate,
+					Type: unix.NL80211_STA_INFO_TX_BITRATE,
 					Data: mustMarshalAttributes([]netlink.Attribute{
-						{Type: nl80211.RateInfoBitrate, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.TransmitBitrate)))},
-						{Type: nl80211.RateInfoBitrate32, Data: nlenc.Uint32Bytes(bitrateAttr(s.TransmitBitrate))},
+						{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.TransmitBitrate)))},
+						{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.TransmitBitrate))},
 					}),
 				},
 			}),

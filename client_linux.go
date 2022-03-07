@@ -15,8 +15,8 @@ import (
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/mdlayher/wifi/internal/nl80211"
 	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/sys/unix"
 )
 
 // Errors which may occur when interacting with generic netlink.
@@ -46,7 +46,7 @@ func newClient() (*client, error) {
 }
 
 func initClient(c *genetlink.Conn) (*client, error) {
-	family, err := c.GetFamily(nl80211.GenlName)
+	family, err := c.GetFamily(unix.NL80211_GENL_NAME)
 	if err != nil {
 		// Ensure the genl socket is closed on error to avoid leaking file
 		// descriptors.
@@ -72,7 +72,7 @@ func (c *client) Interfaces() ([]*Interface, error) {
 	// Ask nl80211 to dump a list of all WiFi interfaces
 	req := genetlink.Message{
 		Header: genetlink.Header{
-			Command: nl80211.CmdGetInterface,
+			Command: unix.NL80211_CMD_GET_INTERFACE,
 			Version: c.familyVersion,
 		},
 	}
@@ -83,7 +83,7 @@ func (c *client) Interfaces() ([]*Interface, error) {
 		return nil, err
 	}
 
-	if err := c.checkMessages(msgs, nl80211.CmdNewInterface); err != nil {
+	if err := c.checkMessages(msgs, unix.NL80211_CMD_NEW_INTERFACE); err != nil {
 		return nil, err
 	}
 
@@ -95,11 +95,11 @@ func (c *client) Connect(ifi *Interface, ssid string) error {
 	// Ask nl80211 to connect to the specified SSID.
 	b, err := netlink.MarshalAttributes([]netlink.Attribute{
 		{
-			Type: nl80211.AttrIfindex,
+			Type: unix.NL80211_ATTR_IFINDEX,
 			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
 		},
 		{
-			Type: nl80211.AttrSsid,
+			Type: unix.NL80211_ATTR_SSID,
 			Data: []byte(ssid),
 		},
 	})
@@ -109,7 +109,7 @@ func (c *client) Connect(ifi *Interface, ssid string) error {
 
 	req := genetlink.Message{
 		Header: genetlink.Header{
-			Command: nl80211.CmdConnect,
+			Command: unix.NL80211_CMD_CONNECT,
 			Version: c.familyVersion,
 		},
 		Data: b,
@@ -127,7 +127,7 @@ func (c *client) Disconnect(ifi *Interface) error {
 	// Ask nl80211 to disconnect.
 	b, err := netlink.MarshalAttributes([]netlink.Attribute{
 		{
-			Type: nl80211.AttrIfindex,
+			Type: unix.NL80211_ATTR_IFINDEX,
 			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
 		},
 	})
@@ -137,7 +137,7 @@ func (c *client) Disconnect(ifi *Interface) error {
 
 	req := genetlink.Message{
 		Header: genetlink.Header{
-			Command: nl80211.CmdDisconnect,
+			Command: unix.NL80211_CMD_DISCONNECT,
 			Version: c.familyVersion,
 		},
 		Data: b,
@@ -155,35 +155,35 @@ func (c *client) ConnectWPAPSK(ifi *Interface, ssid string, psk string) error {
 	// Ask nl80211 to connect to the specified SSID.
 	b, err := netlink.MarshalAttributes([]netlink.Attribute{
 		{
-			Type: nl80211.AttrIfindex,
+			Type: unix.NL80211_ATTR_IFINDEX,
 			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
 		},
 		{
-			Type: nl80211.AttrSsid,
+			Type: unix.NL80211_ATTR_SSID,
 			Data: []byte(ssid),
 		},
 		{
-			Type: nl80211.AttrWpaVersions,
-			Data: nlenc.Uint32Bytes(nl80211.WpaVersion2),
+			Type: unix.NL80211_ATTR_WPA_VERSIONS,
+			Data: nlenc.Uint32Bytes(unix.NL80211_WPA_VERSION_2),
 		},
 		{
-			Type: nl80211.AttrCipherSuiteGroup,
+			Type: unix.NL80211_ATTR_CIPHER_SUITE_GROUP,
 			Data: nlenc.Uint32Bytes(uint32(0xfac04)),
 		},
 		{
-			Type: nl80211.AttrCipherSuitesPairwise,
+			Type: unix.NL80211_ATTR_CIPHER_SUITES_PAIRWISE,
 			Data: nlenc.Uint32Bytes(uint32(0xfac04)),
 		},
 		{
-			Type: nl80211.AttrAkmSuites,
+			Type: unix.NL80211_ATTR_AKM_SUITES,
 			Data: nlenc.Uint32Bytes(uint32(0xfac02)),
 		},
 		{
-			Type: nl80211.AttrWant1x4wayHs,
+			Type: unix.NL80211_ATTR_WANT_1X_4WAY_HS,
 			Data: nil,
 		},
 		{
-			Type: nl80211.AttrPmk,
+			Type: unix.NL80211_ATTR_PMK,
 			Data: wpaPassphrase([]byte(ssid), []byte(psk)),
 		},
 	})
@@ -193,7 +193,7 @@ func (c *client) ConnectWPAPSK(ifi *Interface, ssid string, psk string) error {
 
 	req := genetlink.Message{
 		Header: genetlink.Header{
-			Command: nl80211.CmdConnect,
+			Command: unix.NL80211_CMD_CONNECT,
 			Version: c.familyVersion,
 		},
 		Data: b,
@@ -222,7 +222,7 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	// by its attributes
 	req := genetlink.Message{
 		Header: genetlink.Header{
-			Command: nl80211.CmdGetScan,
+			Command: unix.NL80211_CMD_GET_SCAN,
 			Version: c.familyVersion,
 		},
 		Data: b,
@@ -234,7 +234,7 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 		return nil, err
 	}
 
-	if err := c.checkMessages(msgs, nl80211.CmdNewScanResults); err != nil {
+	if err := c.checkMessages(msgs, unix.NL80211_CMD_NEW_SCAN_RESULTS); err != nil {
 		return nil, err
 	}
 
@@ -256,7 +256,7 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 			// From nl80211.h:
 			//  * @NL80211_CMD_GET_STATION: Get station attributes for station identified by
 			//  * %NL80211_ATTR_MAC on the interface identified by %NL80211_ATTR_IFINDEX.
-			Command: nl80211.CmdGetStation,
+			Command: unix.NL80211_CMD_GET_STATION,
 			Version: c.familyVersion,
 		},
 		Data: b,
@@ -274,7 +274,7 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 
 	stations := make([]*StationInfo, len(msgs))
 	for i := range msgs {
-		if err := c.checkMessages(msgs, nl80211.CmdNewStation); err != nil {
+		if err := c.checkMessages(msgs, unix.NL80211_CMD_NEW_STATION); err != nil {
 			return nil, err
 		}
 
@@ -328,11 +328,11 @@ func parseInterfaces(msgs []genetlink.Message) ([]*Interface, error) {
 func (ifi *Interface) idAttrs() []netlink.Attribute {
 	return []netlink.Attribute{
 		{
-			Type: nl80211.AttrIfindex,
+			Type: unix.NL80211_ATTR_IFINDEX,
 			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
 		},
 		{
-			Type: nl80211.AttrMac,
+			Type: unix.NL80211_ATTR_MAC,
 			Data: ifi.HardwareAddr,
 		},
 	}
@@ -342,21 +342,21 @@ func (ifi *Interface) idAttrs() []netlink.Attribute {
 func (ifi *Interface) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
 		switch a.Type {
-		case nl80211.AttrIfindex:
+		case unix.NL80211_ATTR_IFINDEX:
 			ifi.Index = int(nlenc.Uint32(a.Data))
-		case nl80211.AttrIfname:
+		case unix.NL80211_ATTR_IFNAME:
 			ifi.Name = nlenc.String(a.Data)
-		case nl80211.AttrMac:
+		case unix.NL80211_ATTR_MAC:
 			ifi.HardwareAddr = net.HardwareAddr(a.Data)
-		case nl80211.AttrWiphy:
+		case unix.NL80211_ATTR_WIPHY:
 			ifi.PHY = int(nlenc.Uint32(a.Data))
-		case nl80211.AttrIftype:
+		case unix.NL80211_ATTR_IFTYPE:
 			// NOTE: InterfaceType copies the ordering of nl80211's interface type
 			// constants.  This may not be the case on other operating systems.
 			ifi.Type = InterfaceType(nlenc.Uint32(a.Data))
-		case nl80211.AttrWdev:
+		case unix.NL80211_ATTR_WDEV:
 			ifi.Device = int(nlenc.Uint64(a.Data))
-		case nl80211.AttrWiphyFreq:
+		case unix.NL80211_ATTR_WIPHY_FREQ:
 			ifi.Frequency = int(nlenc.Uint32(a.Data))
 		}
 	}
@@ -373,7 +373,7 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 		}
 
 		for _, a := range attrs {
-			if a.Type != nl80211.AttrBss {
+			if a.Type != unix.NL80211_ATTR_BSS {
 				continue
 			}
 
@@ -384,7 +384,7 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 
 			// The BSS which is associated with an interface will have a status
 			// attribute
-			if !attrsContain(nattrs, nl80211.BssStatus) {
+			if !attrsContain(nattrs, unix.NL80211_BSS_STATUS) {
 				continue
 			}
 
@@ -404,22 +404,22 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
 		switch a.Type {
-		case nl80211.BssBssid:
+		case unix.NL80211_BSS_BSSID:
 			b.BSSID = net.HardwareAddr(a.Data)
-		case nl80211.BssFrequency:
+		case unix.NL80211_BSS_FREQUENCY:
 			b.Frequency = int(nlenc.Uint32(a.Data))
-		case nl80211.BssBeaconInterval:
+		case unix.NL80211_BSS_BEACON_INTERVAL:
 			// Raw value is in "Time Units (TU)".  See:
 			// https://en.wikipedia.org/wiki/Beacon_frame
 			b.BeaconInterval = time.Duration(nlenc.Uint16(a.Data)) * 1024 * time.Microsecond
-		case nl80211.BssSeenMsAgo:
+		case unix.NL80211_BSS_SEEN_MS_AGO:
 			// * @NL80211_BSS_SEEN_MS_AGO: age of this BSS entry in ms
 			b.LastSeen = time.Duration(nlenc.Uint32(a.Data)) * time.Millisecond
-		case nl80211.BssStatus:
+		case unix.NL80211_BSS_STATUS:
 			// NOTE: BSSStatus copies the ordering of nl80211's BSS status
 			// constants.  This may not be the case on other operating systems.
 			b.Status = BSSStatus(nlenc.Uint32(a.Data))
-		case nl80211.BssInformationElements:
+		case unix.NL80211_BSS_INFORMATION_ELEMENTS:
 			ies, err := parseIEs(a.Data)
 			if err != nil {
 				return err
@@ -449,10 +449,9 @@ func parseStationInfo(b []byte) (*StationInfo, error) {
 	var info StationInfo
 	for _, a := range attrs {
 		switch a.Type {
-		case nl80211.AttrMac:
+		case unix.NL80211_ATTR_MAC:
 			info.HardwareAddr = net.HardwareAddr(a.Data)
-
-		case nl80211.AttrStaInfo:
+		case unix.NL80211_ATTR_STA_INFO:
 			nattrs, err := netlink.UnmarshalAttributes(a.Data)
 			if err != nil {
 				return nil, err
@@ -462,14 +461,8 @@ func parseStationInfo(b []byte) (*StationInfo, error) {
 				return nil, err
 			}
 
-			// nl80211.AttrStaInfo is last attibute we are interested in
+			// Parsed the necessary data.
 			return &info, nil
-
-		default:
-			// The other attributes that are returned here appear
-			// nl80211.AttrIfindex, nl80211.AttrGeneration
-			// No need to parse them for now.
-			continue
 		}
 	}
 
@@ -481,32 +474,32 @@ func parseStationInfo(b []byte) (*StationInfo, error) {
 func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
 		switch a.Type {
-		case nl80211.StaInfoConnectedTime:
+		case unix.NL80211_STA_INFO_CONNECTED_TIME:
 			// Though nl80211 does not specify, this value appears to be in seconds:
 			// * @NL80211_STA_INFO_CONNECTED_TIME: time since the station is last connected
 			info.Connected = time.Duration(nlenc.Uint32(a.Data)) * time.Second
-		case nl80211.StaInfoInactiveTime:
+		case unix.NL80211_STA_INFO_INACTIVE_TIME:
 			// * @NL80211_STA_INFO_INACTIVE_TIME: time since last activity (u32, msecs)
 			info.Inactive = time.Duration(nlenc.Uint32(a.Data)) * time.Millisecond
-		case nl80211.StaInfoRxBytes64:
+		case unix.NL80211_STA_INFO_RX_BYTES64:
 			info.ReceivedBytes = int(nlenc.Uint64(a.Data))
-		case nl80211.StaInfoTxBytes64:
+		case unix.NL80211_STA_INFO_TX_BYTES64:
 			info.TransmittedBytes = int(nlenc.Uint64(a.Data))
-		case nl80211.StaInfoSignal:
+		case unix.NL80211_STA_INFO_SIGNAL:
 			//  * @NL80211_STA_INFO_SIGNAL: signal strength of last received PPDU (u8, dBm)
 			// Should just be cast to int8, see code here: https://git.kernel.org/pub/scm/linux/kernel/git/jberg/iw.git/tree/station.c#n378
 			info.Signal = int(int8(a.Data[0]))
-		case nl80211.StaInfoRxPackets:
+		case unix.NL80211_STA_INFO_RX_PACKETS:
 			info.ReceivedPackets = int(nlenc.Uint32(a.Data))
-		case nl80211.StaInfoTxPackets:
+		case unix.NL80211_STA_INFO_TX_PACKETS:
 			info.TransmittedPackets = int(nlenc.Uint32(a.Data))
-		case nl80211.StaInfoTxRetries:
+		case unix.NL80211_STA_INFO_TX_RETRIES:
 			info.TransmitRetries = int(nlenc.Uint32(a.Data))
-		case nl80211.StaInfoTxFailed:
+		case unix.NL80211_STA_INFO_TX_FAILED:
 			info.TransmitFailed = int(nlenc.Uint32(a.Data))
-		case nl80211.StaInfoBeaconLoss:
+		case unix.NL80211_STA_INFO_BEACON_LOSS:
 			info.BeaconLoss = int(nlenc.Uint32(a.Data))
-		case nl80211.StaInfoRxBitrate, nl80211.StaInfoTxBitrate:
+		case unix.NL80211_STA_INFO_RX_BITRATE, unix.NL80211_STA_INFO_TX_BITRATE:
 			rate, err := parseRateInfo(a.Data)
 			if err != nil {
 				return err
@@ -515,9 +508,9 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 			// TODO(mdlayher): return more statistics if they end up being
 			// generally useful
 			switch a.Type {
-			case nl80211.StaInfoRxBitrate:
+			case unix.NL80211_STA_INFO_RX_BITRATE:
 				info.ReceiveBitrate = rate.Bitrate
-			case nl80211.StaInfoTxBitrate:
+			case unix.NL80211_STA_INFO_TX_BITRATE:
 				info.TransmitBitrate = rate.Bitrate
 			}
 		}
@@ -525,10 +518,10 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 		// Only use 32-bit counters if the 64-bit counters are not present.
 		// If the 64-bit counters appear later in the slice, they will overwrite
 		// these values.
-		if info.ReceivedBytes == 0 && a.Type == nl80211.StaInfoRxBytes {
+		if info.ReceivedBytes == 0 && a.Type == unix.NL80211_STA_INFO_RX_BYTES {
 			info.ReceivedBytes = int(nlenc.Uint32(a.Data))
 		}
-		if info.TransmittedBytes == 0 && a.Type == nl80211.StaInfoTxBytes {
+		if info.TransmittedBytes == 0 && a.Type == unix.NL80211_STA_INFO_TX_BYTES {
 			info.TransmittedBytes = int(nlenc.Uint32(a.Data))
 		}
 	}
@@ -553,14 +546,14 @@ func parseRateInfo(b []byte) (*rateInfo, error) {
 	var info rateInfo
 	for _, a := range attrs {
 		switch a.Type {
-		case nl80211.RateInfoBitrate32:
+		case unix.NL80211_RATE_INFO_BITRATE32:
 			info.Bitrate = int(nlenc.Uint32(a.Data))
 		}
 
 		// Only use 16-bit counters if the 32-bit counters are not present.
 		// If the 32-bit counters appear later in the slice, they will overwrite
 		// these values.
-		if info.Bitrate == 0 && a.Type == nl80211.RateInfoBitrate {
+		if info.Bitrate == 0 && a.Type == unix.NL80211_RATE_INFO_BITRATE {
 			info.Bitrate = int(nlenc.Uint16(a.Data))
 		}
 	}
