@@ -23,45 +23,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func TestLinux_clientInterfacesBadResponseCommand(t *testing.T) {
-	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
-		return []genetlink.Message{{
-			Header: genetlink.Header{
-				// Wrong response command
-				Command: unix.NL80211_CMD_GET_INTERFACE,
-			},
-		}}, nil
-	})
-
-	want := errInvalidCommand
-	_, got := c.Interfaces()
-
-	if want != got {
-		t.Fatalf("unexpected error:\n- want: %+v\n-  got: %+v",
-			want, got)
-	}
-}
-
-func TestLinux_clientInterfacesBadResponseFamilyVersion(t *testing.T) {
-	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
-		return []genetlink.Message{{
-			Header: genetlink.Header{
-				// Wrong family version
-				Command: unix.NL80211_CMD_NEW_INTERFACE,
-				Version: 100,
-			},
-		}}, nil
-	})
-
-	want := errInvalidFamilyVersion
-	_, got := c.Interfaces()
-
-	if want != got {
-		t.Fatalf("unexpected error:\n- want: %+v\n-  got: %+v",
-			want, got)
-	}
-}
-
 func TestLinux_clientInterfacesOK(t *testing.T) {
 	want := []*Interface{
 		{

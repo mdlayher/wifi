@@ -73,28 +73,19 @@ func initClient(c *genetlink.Conn) (*client, error) {
 }
 
 // Close closes the client's generic netlink connection.
-func (c *client) Close() error {
-	return c.c.Close()
-}
+func (c *client) Close() error { return c.c.Close() }
 
 // Interfaces requests that nl80211 return a list of all WiFi interfaces present
 // on this system.
 func (c *client) Interfaces() ([]*Interface, error) {
 	// Ask nl80211 to dump a list of all WiFi interfaces
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: unix.NL80211_CMD_GET_INTERFACE,
-			Version: c.familyVersion,
-		},
-	}
-
-	flags := netlink.Request | netlink.Dump
-	msgs, err := c.c.Execute(req, c.familyID, flags)
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_INTERFACE,
+		netlink.Dump,
+		nil,
+		nil,
+	)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := c.checkMessages(msgs, unix.NL80211_CMD_NEW_INTERFACE); err != nil {
 		return nil, err
 	}
 
@@ -104,121 +95,58 @@ func (c *client) Interfaces() ([]*Interface, error) {
 // Connect starts connecting the interface to the specified ssid.
 func (c *client) Connect(ifi *Interface, ssid string) error {
 	// Ask nl80211 to connect to the specified SSID.
-	b, err := netlink.MarshalAttributes([]netlink.Attribute{
-		{
-			Type: unix.NL80211_ATTR_IFINDEX,
-			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+	_, err := c.get(
+		unix.NL80211_CMD_CONNECT,
+		netlink.Acknowledge,
+		ifi,
+		func(ae *netlink.AttributeEncoder) {
+			ae.String(unix.NL80211_ATTR_SSID, ssid)
+			ae.Uint32(unix.NL80211_ATTR_AUTH_TYPE, unix.NL80211_AUTHTYPE_OPEN_SYSTEM)
 		},
-		{
-			Type: unix.NL80211_ATTR_SSID,
-			Data: []byte(ssid),
-		},
-		{
-			Type: unix.NL80211_ATTR_AUTH_TYPE,
-			Data: nlenc.Uint32Bytes(unix.NL80211_AUTHTYPE_OPEN_SYSTEM),
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: unix.NL80211_CMD_CONNECT,
-			Version: c.familyVersion,
-		},
-		Data: b,
-	}
-
-	flags := netlink.Request | netlink.Acknowledge
-	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
-		return err
-	}
-	return nil
+	)
+	return err
 }
 
 // Disconnect disconnects the interface.
 func (c *client) Disconnect(ifi *Interface) error {
 	// Ask nl80211 to disconnect.
-	b, err := netlink.MarshalAttributes([]netlink.Attribute{
-		{
-			Type: unix.NL80211_ATTR_IFINDEX,
-			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
-		},
-	})
-	if err != nil {
-		return err
-	}
-
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: unix.NL80211_CMD_DISCONNECT,
-			Version: c.familyVersion,
-		},
-		Data: b,
-	}
-
-	flags := netlink.Request | netlink.Acknowledge
-	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
-		return err
-	}
-	return nil
+	_, err := c.get(
+		unix.NL80211_CMD_DISCONNECT,
+		netlink.Acknowledge,
+		ifi,
+		nil,
+	)
+	return err
 }
 
-// ConnectWPAPSK starts connecting the interface to the specified ssid using WPA
-func (c *client) ConnectWPAPSK(ifi *Interface, ssid string, psk string) error {
-	// Ask nl80211 to connect to the specified SSID.
-	b, err := netlink.MarshalAttributes([]netlink.Attribute{
-		{
-			Type: unix.NL80211_ATTR_IFINDEX,
-			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
-		},
-		{
-			Type: unix.NL80211_ATTR_SSID,
-			Data: []byte(ssid),
-		},
-		{
-			Type: unix.NL80211_ATTR_WPA_VERSIONS,
-			Data: nlenc.Uint32Bytes(unix.NL80211_WPA_VERSION_2),
-		},
-		{
-			Type: unix.NL80211_ATTR_CIPHER_SUITE_GROUP,
-			Data: nlenc.Uint32Bytes(uint32(0xfac04)),
-		},
-		{
-			Type: unix.NL80211_ATTR_CIPHER_SUITES_PAIRWISE,
-			Data: nlenc.Uint32Bytes(uint32(0xfac04)),
-		},
-		{
-			Type: unix.NL80211_ATTR_AKM_SUITES,
-			Data: nlenc.Uint32Bytes(uint32(0xfac02)),
-		},
-		{
-			Type: unix.NL80211_ATTR_WANT_1X_4WAY_HS,
-			Data: nil,
-		},
-		{
-			Type: unix.NL80211_ATTR_PMK,
-			Data: wpaPassphrase([]byte(ssid), []byte(psk)),
-		},
-	})
-	if err != nil {
-		return err
-	}
+// ConnectWPAPSK starts connecting the interface to the specified SSID using
+// WPA.
+func (c *client) ConnectWPAPSK(ifi *Interface, ssid, psk string) error {
+	// Ask nl80211 to connect to the specified SSID with key..
+	_, err := c.get(
+		unix.NL80211_CMD_CONNECT,
+		netlink.Acknowledge,
+		ifi,
+		func(ae *netlink.AttributeEncoder) {
+			// TODO(mdlayher): document these or build from bitflags.
+			const (
+				cipherSuites = 0xfac04
+				akmSuites    = 0xfac02
+			)
 
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: unix.NL80211_CMD_CONNECT,
-			Version: c.familyVersion,
+			ae.String(unix.NL80211_ATTR_SSID, ssid)
+			ae.Uint32(unix.NL80211_ATTR_WPA_VERSIONS, unix.NL80211_WPA_VERSION_2)
+			ae.Uint32(unix.NL80211_ATTR_CIPHER_SUITE_GROUP, cipherSuites)
+			ae.Uint32(unix.NL80211_ATTR_CIPHER_SUITES_PAIRWISE, cipherSuites)
+			ae.Uint32(unix.NL80211_ATTR_AKM_SUITES, akmSuites)
+			ae.Flag(unix.NL80211_ATTR_WANT_1X_4WAY_HS, true)
+			ae.Bytes(
+				unix.NL80211_ATTR_PMK,
+				wpaPassphrase([]byte(ssid), []byte(psk)),
+			)
 		},
-		Data: b,
-	}
-
-	flags := netlink.Request | netlink.Acknowledge
-	if _, err := c.c.Execute(req, c.familyID, flags); err != nil {
-		return err
-	}
-	return nil
+	)
+	return err
 }
 
 // wpaPassphrase computes a WPA passphrase given an SSID and preshared key.
@@ -228,28 +156,13 @@ func wpaPassphrase(ssid, psk []byte) []byte {
 
 // BSS requests that nl80211 return the BSS for the specified Interface.
 func (c *client) BSS(ifi *Interface) (*BSS, error) {
-	b, err := netlink.MarshalAttributes(ifi.idAttrs())
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_SCAN,
+		netlink.Dump,
+		ifi,
+		nil,
+	)
 	if err != nil {
-		return nil, err
-	}
-
-	// Ask nl80211 to retrieve BSS information for the interface specified
-	// by its attributes
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: unix.NL80211_CMD_GET_SCAN,
-			Version: c.familyVersion,
-		},
-		Data: b,
-	}
-
-	flags := netlink.Request | netlink.Dump
-	msgs, err := c.c.Execute(req, c.familyID, flags)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := c.checkMessages(msgs, unix.NL80211_CMD_NEW_SCAN_RESULTS); err != nil {
 		return nil, err
 	}
 
@@ -259,26 +172,12 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 // StationInfo requests that nl80211 return all station info for the specified
 // Interface.
 func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
-	b, err := netlink.MarshalAttributes(ifi.idAttrs())
-	if err != nil {
-		return nil, err
-	}
-
-	// Ask nl80211 to retrieve station info for the interface specified
-	// by its attributes
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			// From nl80211.h:
-			//  * @NL80211_CMD_GET_STATION: Get station attributes for station identified by
-			//  * %NL80211_ATTR_MAC on the interface identified by %NL80211_ATTR_IFINDEX.
-			Command: unix.NL80211_CMD_GET_STATION,
-			Version: c.familyVersion,
-		},
-		Data: b,
-	}
-
-	flags := netlink.Request | netlink.Dump
-	msgs, err := c.c.Execute(req, c.familyID, flags)
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_STATION,
+		netlink.Dump,
+		ifi,
+		nil,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -289,10 +188,6 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 
 	stations := make([]*StationInfo, len(msgs))
 	for i := range msgs {
-		if err := c.checkMessages(msgs, unix.NL80211_CMD_NEW_STATION); err != nil {
-			return nil, err
-		}
-
 		if stations[i], err = parseStationInfo(msgs[i].Data); err != nil {
 			return nil, err
 		}
@@ -301,20 +196,51 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return stations, nil
 }
 
-// checkMessages verifies that response messages from generic netlink contain
-// the command and family version we expect.
-func (c *client) checkMessages(msgs []genetlink.Message, command uint8) error {
-	for _, m := range msgs {
-		if m.Header.Command != command {
-			return errInvalidCommand
-		}
-
-		if m.Header.Version != c.familyVersion {
-			return errInvalidFamilyVersion
-		}
+// get performs a request/response interaction with nl80211.
+func (c *client) get(
+	cmd uint8,
+	flags netlink.HeaderFlags,
+	ifi *Interface,
+	// May be nil; used to apply optional parameters.
+	params func(ae *netlink.AttributeEncoder),
+) ([]genetlink.Message, error) {
+	ae := netlink.NewAttributeEncoder()
+	ifi.encode(ae)
+	if params != nil {
+		// Optionally apply more parameters to the attribute encoder.
+		params(ae)
 	}
 
-	return nil
+	// Note: don't send netlink.Acknowledge or we get an extra message back from
+	// the kernel which doesn't seem useful as of now.
+	return c.execute(cmd, flags, ae)
+}
+
+// execute executes the specified command with additional header flags and input
+// netlink request attributes. The netlink.Request header flag is automatically
+// set.
+func (c *client) execute(
+	cmd uint8,
+	flags netlink.HeaderFlags,
+	ae *netlink.AttributeEncoder,
+) ([]genetlink.Message, error) {
+	b, err := ae.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.c.Execute(
+		genetlink.Message{
+			Header: genetlink.Header{
+				Command: cmd,
+				Version: c.familyVersion,
+			},
+			Data: b,
+		},
+		// Always pass the genetlink family ID and request flag.
+		c.familyID,
+		netlink.Request|flags,
+	)
 }
 
 // parseInterfaces parses zero or more Interfaces from nl80211 interface
@@ -336,6 +262,22 @@ func parseInterfaces(msgs []genetlink.Message) ([]*Interface, error) {
 	}
 
 	return ifis, nil
+}
+
+// encode provides an encoding function for ifi's attributes. If ifi is nil,
+// encode is a no-op.
+func (ifi *Interface) encode(ae *netlink.AttributeEncoder) {
+	if ifi == nil {
+		return
+	}
+
+	// Mandatory.
+	ae.Uint32(unix.NL80211_ATTR_IFINDEX, uint32(ifi.Index))
+
+	// Optional parameters.
+	if ifi.HardwareAddr != nil {
+		ae.Bytes(unix.NL80211_ATTR_MAC, ifi.HardwareAddr)
+	}
 }
 
 // idAttrs returns the netlink attributes required from an Interface to retrieve
