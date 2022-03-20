@@ -93,7 +93,7 @@ func (c *client) Connect(ifi *Interface, ssid string) error {
 		netlink.Acknowledge,
 		ifi,
 		func(ae *netlink.AttributeEncoder) {
-			ae.String(unix.NL80211_ATTR_SSID, ssid)
+			ae.Bytes(unix.NL80211_ATTR_SSID, []byte(ssid))
 			ae.Uint32(unix.NL80211_ATTR_AUTH_TYPE, unix.NL80211_AUTHTYPE_OPEN_SYSTEM)
 		},
 	)
@@ -127,7 +127,7 @@ func (c *client) ConnectWPAPSK(ifi *Interface, ssid, psk string) error {
 				akmSuites    = 0xfac02
 			)
 
-			ae.String(unix.NL80211_ATTR_SSID, ssid)
+			ae.Bytes(unix.NL80211_ATTR_SSID, []byte(ssid))
 			ae.Uint32(unix.NL80211_ATTR_WPA_VERSIONS, unix.NL80211_WPA_VERSION_2)
 			ae.Uint32(unix.NL80211_ATTR_CIPHER_SUITE_GROUP, cipherSuites)
 			ae.Uint32(unix.NL80211_ATTR_CIPHER_SUITES_PAIRWISE, cipherSuites)
@@ -153,7 +153,11 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 		unix.NL80211_CMD_GET_SCAN,
 		netlink.Dump,
 		ifi,
-		nil,
+		func(ae *netlink.AttributeEncoder) {
+			if ifi.HardwareAddr != nil {
+				ae.Bytes(unix.NL80211_ATTR_MAC, ifi.HardwareAddr)
+			}
+		},
 	)
 	if err != nil {
 		return nil, err
@@ -169,7 +173,11 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 		unix.NL80211_CMD_GET_STATION,
 		netlink.Dump,
 		ifi,
-		nil,
+		func(ae *netlink.AttributeEncoder) {
+			if ifi.HardwareAddr != nil {
+				ae.Bytes(unix.NL80211_ATTR_MAC, ifi.HardwareAddr)
+			}
+		},
 	)
 	if err != nil {
 		return nil, err
@@ -266,11 +274,6 @@ func (ifi *Interface) encode(ae *netlink.AttributeEncoder) {
 
 	// Mandatory.
 	ae.Uint32(unix.NL80211_ATTR_IFINDEX, uint32(ifi.Index))
-
-	// Optional parameters.
-	if ifi.HardwareAddr != nil {
-		ae.Bytes(unix.NL80211_ATTR_MAC, ifi.HardwareAddr)
-	}
 }
 
 // idAttrs returns the netlink attributes required from an Interface to retrieve
