@@ -42,6 +42,17 @@ func newClient() (*client, error) {
 		return nil, err
 	}
 
+	// Make a best effort to apply the strict options set to provide better
+	// errors and validation. We don't apply Strict in the constructor because
+	// this library is widely used on a range of kernels and we can't guarantee
+	// it will always work on older kernels.
+	for _, o := range []netlink.ConnOption{
+		netlink.ExtendedAcknowledge,
+		netlink.GetStrictCheck,
+	} {
+		_ = c.SetOption(o, true)
+	}
+
 	return initClient(c)
 }
 
