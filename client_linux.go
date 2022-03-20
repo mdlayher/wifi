@@ -102,6 +102,10 @@ func (c *client) Connect(ifi *Interface, ssid string) error {
 			Type: unix.NL80211_ATTR_SSID,
 			Data: []byte(ssid),
 		},
+		{
+			Type: unix.NL80211_ATTR_AUTH_TYPE,
+			Data: nlenc.Uint32Bytes(unix.NL80211_AUTHTYPE_OPEN_SYSTEM),
+		},
 	})
 	if err != nil {
 		return err
