@@ -6,7 +6,6 @@ package wifi
 import (
 	"bytes"
 	"crypto/sha1"
-	"errors"
 	"net"
 	"os"
 	"time"
@@ -17,12 +16,6 @@ import (
 	"github.com/mdlayher/netlink/nlenc"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/sys/unix"
-)
-
-// Errors which may occur when interacting with generic netlink.
-var (
-	errInvalidCommand       = errors.New("invalid generic netlink response command")
-	errInvalidFamilyVersion = errors.New("invalid generic netlink response family version")
 )
 
 // A client is the Linux implementation of osClient, which makes use of
