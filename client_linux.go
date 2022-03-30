@@ -137,6 +137,7 @@ func (c *client) ConnectWPAPSK(ifi *Interface, ssid, psk string) error {
 				unix.NL80211_ATTR_PMK,
 				wpaPassphrase([]byte(ssid), []byte(psk)),
 			)
+			ae.Uint32(unix.NL80211_ATTR_AUTH_TYPE, unix.NL80211_AUTHTYPE_OPEN_SYSTEM)
 		},
 	)
 	return err
