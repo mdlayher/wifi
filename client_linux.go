@@ -198,6 +198,85 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return stations, nil
 }
 
+// SetFrequency sets the frequency of a wireless interface
+func (c *client) SetFrequency(ifi *Interface, freq int) ([]genetlink.Message, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_SET_WIPHY,
+		netlink.Acknowledge,
+		ifi,
+		func(ae *netlink.AttributeEncoder) {
+			ae.Int32(unix.NL80211_ATTR_WIPHY_FREQ, int32(freq))
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, os.ErrNotExist
+	}
+	return msgs, nil
+}
+
+// SetChannel sets the channel of a wireless interface
+func (c *client) SetChannelWidth(ifi *Interface, width int) ([]genetlink.Message, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_SET_WIPHY,
+		netlink.Acknowledge,
+		ifi,
+		func(ae *netlink.AttributeEncoder) {
+			ae.Int32(unix.NL80211_ATTR_CHANNEL_WIDTH, int32(width))	
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, os.ErrNotExist
+	}
+	return msgs, nil
+}
+
+func (c *client) SetModeMonitor(ifi *Interface) ([]genetlink.Message, error) {
+	msgs, err := c.setInterface(ifi, unix.NL80211_IFTYPE_MONITOR)
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, os.ErrNotExist
+	}
+	return msgs, nil	
+}
+
+func (c *client) SetModeStation(ifi *Interface) ([]genetlink.Message, error) {
+	msgs, err := c.setInterface(ifi, unix.NL80211_IFTYPE_STATION)
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, os.ErrNotExist
+	}
+	return msgs, nil	
+}
+
+//setInterface sets the interface iftype
+func (c *client) setInterface(ifi *Interface, iftype int) ([]genetlink.Message, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_SET_INTERFACE,
+		netlink.Acknowledge,
+		ifi,
+		func(ae *netlink.AttributeEncoder) {
+			ae.Int32(unix.NL80211_ATTR_IFTYPE, int32(iftype))
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, os.ErrNotExist
+	}
+	return msgs, nil	
+}
+
 // get performs a request/response interaction with nl80211.
 func (c *client) get(
 	cmd uint8,

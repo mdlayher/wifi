@@ -1,5 +1,7 @@
 package wifi
 
+import "github.com/mdlayher/genetlink"
+
 // A Client is a type which can access WiFi device actions and statistics
 // using operating system-specific operations.
 type Client struct {
@@ -51,4 +53,19 @@ func (c *Client) BSS(ifi *Interface) (*BSS, error) {
 // StationInfo retrieves all station statistics about a WiFi interface.
 func (c *Client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return c.c.StationInfo(ifi)
+}
+
+// SetFrequency sets the frequency of a wireless interface.
+func (c *Client) SetFrequency(ifi *Interface, freq int) ([]genetlink.Message, error) {
+	return c.c.SetFrequency(ifi, freq)
+}
+
+//SetModeMonitor sets a wireless interface iftype to MONITOR.
+func (c *Client) SetModeMonitor(ifi *Interface) ([]genetlink.Message, error) {
+	return c.c.SetModeMonitor(ifi)
+}
+
+//SetModeStation sets a wireless interface iftype to Station.
+func (c *Client) SetModeStation(ifi *Interface) ([]genetlink.Message, error) {
+	return c.c.SetModeStation(ifi)
 }
