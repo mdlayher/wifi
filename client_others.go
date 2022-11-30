@@ -24,3 +24,8 @@ func (*client) StationInfo(_ *Interface) ([]*StationInfo, error) { return nil, e
 func (*client) Connect(_ *Interface, _ string) error             { return errUnimplemented }
 func (*client) Disconnect(_ *Interface) error                    { return errUnimplemented }
 func (*client) ConnectWPAPSK(_ *Interface, _, _ string) error    { return errUnimplemented }
+
+func (*client) SetFrequency(_ *Interface, _ int)				 { return errUnimplemented }
+func (*client) SetChannelWidth(_ *Interface, _ int)				 { return errUnimplemented }
+func (*client) SetModeMonitor(_ *Interface)						 { return errUnimplemented }
+func (*client) SetModeStation(_ *Interface)						 { return errUnimplemented }
