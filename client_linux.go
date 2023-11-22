@@ -6,6 +6,7 @@ package wifi
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/binary"
 	"net"
 	"os"
 	"time"
@@ -384,6 +385,8 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 				switch ie.ID {
 				case ieSSID:
 					b.SSID = decodeSSID(ie.Data)
+				case ieBSSLoad:
+					b.LoadStationCount, b.LoadChannelUtilization, b.LoadAvailableAdmissionCapacity = decodeBSSLoad(ie.Data)
 				}
 			}
 		}
@@ -543,4 +546,19 @@ func decodeSSID(b []byte) string {
 	}
 
 	return buf.String()
+}
+
+func decodeBSSLoad(b []byte) (stationCount uint16, channelUtilization uint8, availableAdmissionCapacity uint16) {
+	// values from https://raw.githubusercontent.com/wireshark/wireshark/master/epan/dissectors/packet-ieee80211.c
+	// TODO(lukas-mbag) check for version (len 4 or 5)
+	// TODO(lukas-mbag) add error handling
+	stationCount = binary.LittleEndian.Uint16(b[0:])
+	channelUtilization = b[2]
+	availableAdmissionCapacity = binary.LittleEndian.Uint16(b[3:])
+	// fmt.Printf("stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d [*32us/s]\n",
+	// 	stationCount,
+	// 	channelUtilization,
+	// 	availableAdmissionCapacity,
+	// )
+	return
 }

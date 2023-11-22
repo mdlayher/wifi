@@ -188,6 +188,19 @@ type BSS struct {
 
 	// The status of the client within the BSS.
 	Status BSSStatus
+
+	// BSSLoad elements
+	// Version of the BSS Load Element. Can be 1 or 2.
+	LoadVersion int
+
+	// Station Count on this BSS
+	LoadStationCount uint16
+
+	// Channel Utilization from 0 to 255
+	LoadChannelUtilization uint8
+
+	// Available Admission Capacity in unit [32 us/s]
+	LoadAvailableAdmissionCapacity uint16
 }
 
 // A BSSStatus indicates the current status of client within a BSS.
@@ -220,7 +233,8 @@ func (s BSSStatus) String() string {
 
 // List of 802.11 Information Element types.
 const (
-	ieSSID = 0
+	ieSSID    = 0
+	ieBSSLoad = 11
 )
 
 // An ie is an 802.11 information element.
@@ -232,7 +246,8 @@ type ie struct {
 
 // parseIEs parses zero or more ies from a byte slice.
 // Reference:
-//   https://www.safaribooksonline.com/library/view/80211-wireless-networks/0596100523/ch04.html#wireless802dot112-CHP-4-FIG-31
+//
+//	https://www.safaribooksonline.com/library/view/80211-wireless-networks/0596100523/ch04.html#wireless802dot112-CHP-4-FIG-31
 func parseIEs(b []byte) ([]ie, error) {
 	var ies []ie
 	var i int
