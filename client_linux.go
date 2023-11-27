@@ -386,7 +386,11 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 				case ieSSID:
 					b.SSID = decodeSSID(ie.Data)
 				case ieBSSLoad:
-					b.LoadStationCount, b.LoadChannelUtilization, b.LoadAvailableAdmissionCapacity = decodeBSSLoad(ie.Data)
+					Bssload, err := decodeBSSLoad(ie.Data)
+					if err != nil {
+						continue // This IE is malformed
+					}
+					b.Load = *Bssload
 				}
 			}
 		}
@@ -548,17 +552,24 @@ func decodeSSID(b []byte) string {
 	return buf.String()
 }
 
-func decodeBSSLoad(b []byte) (stationCount uint16, channelUtilization uint8, availableAdmissionCapacity uint16) {
+// func decodeBSSLoad(b []byte) (stationCount uint16, channelUtilization uint8, availableAdmissionCapacity uint1) {
+func decodeBSSLoad(b []byte) (*BSSLoad, error) {
 	// values from https://raw.githubusercontent.com/wireshark/wireshark/master/epan/dissectors/packet-ieee80211.c
-	// TODO(lukas-mbag) check for version (len 4 or 5)
 	// TODO(lukas-mbag) add error handling
-	stationCount = binary.LittleEndian.Uint16(b[0:])
-	channelUtilization = b[2]
-	availableAdmissionCapacity = binary.LittleEndian.Uint16(b[3:])
-	// fmt.Printf("stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d [*32us/s]\n",
-	// 	stationCount,
-	// 	channelUtilization,
-	// 	availableAdmissionCapacity,
-	// )
-	return
+	var load BSSLoad
+	if len(b) == 5 {
+		load.Version = 2
+		load.StationCount = binary.LittleEndian.Uint16(b[0:])
+		load.ChannelUtilization = b[2]
+		load.AvailableAdmissionCapacity = binary.LittleEndian.Uint16(b[3:])
+	} else if len(b) == 4 {
+		load.Version = 1
+		load.StationCount = binary.LittleEndian.Uint16(b[0:])
+		load.ChannelUtilization = b[2]
+		load.AvailableAdmissionCapacity = uint16(b[3])
+	} else {
+		err := errInvalidBSSLoad
+		return nil, err
+	}
+	return &load, nil
 }

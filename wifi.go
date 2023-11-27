@@ -10,6 +10,9 @@ import (
 // errInvalidIE is returned when one or more IEs are malformed.
 var errInvalidIE = errors.New("invalid 802.11 information element")
 
+// errInvalidBSSLoad is returned when BSSLoad IE has wrong length.
+var errInvalidBSSLoad = errors.New("802.11 information element BSSLoad has wrong length")
+
 // An InterfaceType is the operating mode of an Interface.
 type InterfaceType int
 
@@ -166,6 +169,31 @@ type StationInfo struct {
 	BeaconLoss int
 }
 
+// BSSLoad is an Information Element containing Measurements of the Load on the BSS
+type BSSLoad struct {
+	// Version of the BSS Load Element. Can be 1 or 2.
+	Version int
+
+	// Station Count on this BSS
+	StationCount uint16
+
+	// Channel Utilization from 0 to 255
+	ChannelUtilization uint8
+
+	// Available Admission Capacity in unit [32 us/s]
+	AvailableAdmissionCapacity uint16
+}
+
+// String returns the string representation of a BSSLoad.
+func (l BSSLoad) String() string {
+	return fmt.Sprintf("BSSLoad Version: %d    stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d [*32us/s]\n",
+		l.Version,
+		l.StationCount,
+		l.ChannelUtilization,
+		l.AvailableAdmissionCapacity,
+	)
+}
+
 // A BSS is an 802.11 basic service set.  It contains information about a wireless
 // network associated with an Interface.
 type BSS struct {
@@ -190,17 +218,7 @@ type BSS struct {
 	Status BSSStatus
 
 	// BSSLoad elements
-	// Version of the BSS Load Element. Can be 1 or 2.
-	LoadVersion int
-
-	// Station Count on this BSS
-	LoadStationCount uint16
-
-	// Channel Utilization from 0 to 255
-	LoadChannelUtilization uint8
-
-	// Available Admission Capacity in unit [32 us/s]
-	LoadAvailableAdmissionCapacity uint16
+	Load BSSLoad
 }
 
 // A BSSStatus indicates the current status of client within a BSS.
