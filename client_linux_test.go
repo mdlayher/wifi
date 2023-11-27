@@ -567,7 +567,8 @@ func Test_decodeBSSLoad(t *testing.T) {
 		wantChannelUtilization         uint8
 		wantAvailableAdmissionCapacity uint16
 	}{
-		{name: "Parse BSS Load", args: args{b: []byte{3, 0, 8, 0x8D, 0x5B}}, wantVersion: 2, wantStationCount: 3, wantChannelUtilization: 8, wantAvailableAdmissionCapacity: 23437},
+		{name: "Parse BSS Load Normal", args: args{b: []byte{3, 0, 8, 0x8D, 0x5B}}, wantVersion: 2, wantStationCount: 3, wantChannelUtilization: 8, wantAvailableAdmissionCapacity: 23437},
+		{name: "Parse BSS Load Version 1", args: args{b: []byte{9, 0, 8, 0x8D}}, wantVersion: 1, wantStationCount: 9, wantChannelUtilization: 8, wantAvailableAdmissionCapacity: 141},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -589,5 +590,13 @@ func Test_decodeBSSLoad(t *testing.T) {
 				t.Errorf("decodeBSSLoad() gotAvailableAdmissionCapacity = %v, want %v", gotAvailableAdmissionCapacity, tt.wantAvailableAdmissionCapacity)
 			}
 		})
+	}
+}
+
+func Test_decodeBSSLoadError(t *testing.T) {
+	t.Parallel()
+	_, err := decodeBSSLoad([]byte{3, 0, 8})
+	if err == nil {
+		t.Error("want error on bogus IE with wrong length")
 	}
 }
