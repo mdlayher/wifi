@@ -169,12 +169,12 @@ type StationInfo struct {
 	BeaconLoss int
 }
 
-// BSSLoad is an Information Element containing Measurements of the Load on the BSS
+// BSSLoad is an Information Element containing measurements of the load on the BSS.
 type BSSLoad struct {
 	// Version of the BSS Load Element. Can be 1 or 2.
 	Version int
 
-	// Station Count on this BSS
+	// Station Count on this BSS.
 	StationCount uint16
 
 	// Channel Utilization from 0 to 255
@@ -222,7 +222,7 @@ type BSS struct {
 	// The status of the client within the BSS.
 	Status BSSStatus
 
-	// BSSLoad elements
+	// The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
 	Load BSSLoad
 }
 

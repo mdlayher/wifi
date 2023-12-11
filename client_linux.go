@@ -557,13 +557,13 @@ func decodeSSID(b []byte) string {
 func decodeBSSLoad(b []byte) (*BSSLoad, error) {
 	var load BSSLoad
 	if len(b) == 5 {
-		// Wiresahrk calls this "802.11e CCA Version"
+		// Wireshark calls this "802.11e CCA Version"
 		load.Version = 2
 		load.StationCount = binary.LittleEndian.Uint16(b[0:2])               // first 2 bytes
 		load.ChannelUtilization = b[2]                                       // next 1 byte
 		load.AvailableAdmissionCapacity = binary.LittleEndian.Uint16(b[3:5]) // last 2 bytes
 	} else if len(b) == 4 {
-		// Wiresahrk calls this "Cisco QBSS Version 1 - non CCA"
+		// Wireshark calls this "Cisco QBSS Version 1 - non CCA"
 		load.Version = 1
 		load.StationCount = binary.LittleEndian.Uint16(b[0:2]) // first 2 bytes
 		load.ChannelUtilization = b[2]                         // next 1 byte
