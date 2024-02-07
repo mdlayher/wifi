@@ -554,10 +554,13 @@ func decodeSSID(b []byte) string {
 
 // decodeBSSLoad Decodes the BSSLoad IE. Supports Version 1 and Version 2
 // values according to https://raw.githubusercontent.com/wireshark/wireshark/master/epan/dissectors/packet-ieee80211.c
+// See also source code of iw (v5.19) scan.c Line 1634ff
+// BSS Load ELement (with length 5) is defined by chapter 9.4.2.27 (page 1066) of the current IEEE 802.11-2020
 func decodeBSSLoad(b []byte) (*BSSLoad, error) {
 	var load BSSLoad
 	if len(b) == 5 {
 		// Wireshark calls this "802.11e CCA Version"
+		// This is the version defined in IEEE 802.11 (Versions 2007, 2012, 2016 and 2020)
 		load.Version = 2
 		load.StationCount = binary.LittleEndian.Uint16(b[0:2])               // first 2 bytes
 		load.ChannelUtilization = b[2]                                       // next 1 byte
