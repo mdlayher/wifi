@@ -554,3 +554,49 @@ func mustMessages(t *testing.T, command uint8, want interface{}) genltest.Func {
 		return msgs, nil
 	}
 }
+
+func Test_decodeBSSLoad(t *testing.T) {
+	type args struct {
+		b []byte
+	}
+	tests := []struct {
+		name                           string
+		args                           args
+		wantVersion                    uint16
+		wantStationCount               uint16
+		wantChannelUtilization         uint8
+		wantAvailableAdmissionCapacity uint16
+	}{
+		{name: "Parse BSS Load Normal", args: args{b: []byte{3, 0, 8, 0x8D, 0x5B}}, wantVersion: 2, wantStationCount: 3, wantChannelUtilization: 8, wantAvailableAdmissionCapacity: 23437},
+		{name: "Parse BSS Load Version 1", args: args{b: []byte{9, 0, 8, 0x8D}}, wantVersion: 1, wantStationCount: 9, wantChannelUtilization: 8, wantAvailableAdmissionCapacity: 141},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bssLoad, _ := decodeBSSLoad(tt.args.b)
+			gotVersion := bssLoad.Version
+			gotStationCount := bssLoad.StationCount
+			gotChannelUtilization := bssLoad.ChannelUtilization
+			gotAvailableAdmissionCapacity := bssLoad.AvailableAdmissionCapacity
+			if uint16(gotVersion) != tt.wantVersion {
+				t.Errorf("decodeBSSLoad() gotVersion = %v, want %v", gotVersion, tt.wantVersion)
+			}
+			if gotStationCount != tt.wantStationCount {
+				t.Errorf("decodeBSSLoad() gotStationCount = %v, want %v", gotStationCount, tt.wantStationCount)
+			}
+			if gotChannelUtilization != tt.wantChannelUtilization {
+				t.Errorf("decodeBSSLoad() gotChannelUtilization = %v, want %v", gotChannelUtilization, tt.wantChannelUtilization)
+			}
+			if gotAvailableAdmissionCapacity != tt.wantAvailableAdmissionCapacity {
+				t.Errorf("decodeBSSLoad() gotAvailableAdmissionCapacity = %v, want %v", gotAvailableAdmissionCapacity, tt.wantAvailableAdmissionCapacity)
+			}
+		})
+	}
+}
+
+func Test_decodeBSSLoadError(t *testing.T) {
+	t.Parallel()
+	_, err := decodeBSSLoad([]byte{3, 0, 8})
+	if err == nil {
+		t.Error("want error on bogus IE with wrong length")
+	}
+}
