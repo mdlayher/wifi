@@ -443,6 +443,8 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 			//  * @NL80211_STA_INFO_SIGNAL: signal strength of last received PPDU (u8, dBm)
 			// Should just be cast to int8, see code here: https://git.kernel.org/pub/scm/linux/kernel/git/jberg/iw.git/tree/station.c#n378
 			info.Signal = int(int8(a.Data[0]))
+		case unix.NL80211_STA_INFO_SIGNAL_AVG:
+			info.SignalAverage = int(int8(a.Data[0]))
 		case unix.NL80211_STA_INFO_RX_PACKETS:
 			info.ReceivedPackets = int(nlenc.Uint32(a.Data))
 		case unix.NL80211_STA_INFO_TX_PACKETS:
