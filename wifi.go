@@ -153,8 +153,11 @@ type StationInfo struct {
 	// The current data transmit bitrate, in bits/second.
 	TransmitBitrate int
 
-	// The signal strength of this station's connection, in dBm.
+	// The signal strength of the last received PPDU, in dBm.
 	Signal int
+
+	// The average signal strength, in dBm.
+	SignalAverage int
 
 	// The number of times the station has had to retry while sending a packet.
 	TransmitRetries int
