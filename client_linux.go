@@ -184,10 +184,6 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 		return nil, err
 	}
 
-	if len(msgs) == 0 {
-		return nil, os.ErrNotExist
-	}
-
 	stations := make([]*StationInfo, len(msgs))
 	for i := range msgs {
 		if stations[i], err = parseStationInfo(msgs[i].Data); err != nil {

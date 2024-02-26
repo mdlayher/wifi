@@ -256,12 +256,15 @@ func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
 		return nil, io.EOF
 	})
 
-	_, err := c.StationInfo(&Interface{
+	info, err := c.StationInfo(&Interface{
 		Index:        1,
 		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
 	})
-	if !os.IsNotExist(err) {
-		t.Fatalf("expected is not exist, got: %v", err)
+	if err != nil {
+		t.Fatalf("undexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(info, []*StationInfo{}) {
+		t.Fatalf("expected info to be an empty slice, got %v", info)
 	}
 }
 
