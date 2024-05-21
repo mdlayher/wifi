@@ -171,16 +171,16 @@ type StationInfo struct {
 
 // BSSLoad is an Information Element containing measurements of the load on the BSS.
 type BSSLoad struct {
-	// Version of the BSS Load Element. Can be 1 or 2.
+	// Version: Indicates the version of the BSS Load Element. Can be 1 or 2.
 	Version int
 
 	// StationCount: total number of STA currently associated with this BSS.
 	StationCount uint16
 
-	// Channel Utilization: Percentage of time (linearly scaled 0 to 255) that the AP sensed the medium was busy. Calculated only for the primary channel.
+	// ChannelUtilization: Percentage of time (linearly scaled 0 to 255) that the AP sensed the medium was busy. Calculated only for the primary channel.
 	ChannelUtilization uint8
 
-	// Available Admission Capacity: remaining amount of medium time availible via explicit admission controll in units of 32 us/s.
+	// AvailableAdmissionCapacity: remaining amount of medium time availible via explicit admission controll in units of 32 us/s.
 	AvailableAdmissionCapacity uint16
 }
 
@@ -205,21 +205,21 @@ type BSS struct {
 	// The service set identifier, or "network name" of the BSS.
 	SSID string
 
-	// The BSS service set identifier.  In infrastructure mode, this is the
+	// BSSID: The BSS service set identifier.  In infrastructure mode, this is the
 	// hardware address of the wireless access point that a client is associated
 	// with.
 	BSSID net.HardwareAddr
 
-	// The frequency used by the BSS, in MHz.
+	// Frequency: The frequency used by the BSS, in MHz.
 	Frequency int
 
-	// The interval between beacon transmissions for this BSS.
+	// BeaconInterval: The time interval between beacon transmissions for this BSS.
 	BeaconInterval time.Duration
 
-	// The time since the client last scanned this BSS's information.
+	// LastSeen: The time since the client last scanned this BSS's information.
 	LastSeen time.Duration
 
-	// The status of the client within the BSS.
+	// Status: The status of the client within the BSS.
 	Status BSSStatus
 
 	// Load: The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
