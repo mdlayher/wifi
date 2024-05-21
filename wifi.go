@@ -10,6 +10,9 @@ import (
 // errInvalidIE is returned when one or more IEs are malformed.
 var errInvalidIE = errors.New("invalid 802.11 information element")
 
+// errInvalidBSSLoad is returned when BSSLoad IE has wrong length.
+var errInvalidBSSLoad = errors.New("802.11 information element BSSLoad has wrong length")
+
 // An InterfaceType is the operating mode of an Interface.
 type InterfaceType int
 
@@ -166,28 +169,61 @@ type StationInfo struct {
 	BeaconLoss int
 }
 
+// BSSLoad is an Information Element containing measurements of the load on the BSS.
+type BSSLoad struct {
+	// Version: Indicates the version of the BSS Load Element. Can be 1 or 2.
+	Version int
+
+	// StationCount: total number of STA currently associated with this BSS.
+	StationCount uint16
+
+	// ChannelUtilization: Percentage of time (linearly scaled 0 to 255) that the AP sensed the medium was busy. Calculated only for the primary channel.
+	ChannelUtilization uint8
+
+	// AvailableAdmissionCapacity: remaining amount of medium time availible via explicit admission controll in units of 32 us/s.
+	AvailableAdmissionCapacity uint16
+}
+
+// String returns the string representation of a BSSLoad.
+func (l BSSLoad) String() string {
+	if l.Version == 1 {
+		return fmt.Sprintf("BSSLoad Version: %d    stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d\n",
+			l.Version, l.StationCount, l.ChannelUtilization, l.AvailableAdmissionCapacity,
+		)
+	} else if l.Version == 2 {
+		return fmt.Sprintf("BSSLoad Version: %d    stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d [*32us/s]\n",
+			l.Version, l.StationCount, l.ChannelUtilization, l.AvailableAdmissionCapacity,
+		)
+	} else {
+		return fmt.Sprintf("invalid BSSLoad Version: %d", l.Version)
+	}
+}
+
 // A BSS is an 802.11 basic service set.  It contains information about a wireless
 // network associated with an Interface.
 type BSS struct {
 	// The service set identifier, or "network name" of the BSS.
 	SSID string
 
-	// The BSS service set identifier.  In infrastructure mode, this is the
+	// BSSID: The BSS service set identifier.  In infrastructure mode, this is the
 	// hardware address of the wireless access point that a client is associated
 	// with.
 	BSSID net.HardwareAddr
 
-	// The frequency used by the BSS, in MHz.
+	// Frequency: The frequency used by the BSS, in MHz.
 	Frequency int
 
-	// The interval between beacon transmissions for this BSS.
+	// BeaconInterval: The time interval between beacon transmissions for this BSS.
 	BeaconInterval time.Duration
 
-	// The time since the client last scanned this BSS's information.
+	// LastSeen: The time since the client last scanned this BSS's information.
 	LastSeen time.Duration
 
-	// The status of the client within the BSS.
+	// Status: The status of the client within the BSS.
 	Status BSSStatus
+
+	// Load: The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
+	Load BSSLoad
 }
 
 // A BSSStatus indicates the current status of client within a BSS.
@@ -220,7 +256,8 @@ func (s BSSStatus) String() string {
 
 // List of 802.11 Information Element types.
 const (
-	ieSSID = 0
+	ieSSID    = 0
+	ieBSSLoad = 11
 )
 
 // An ie is an 802.11 information element.
@@ -232,7 +269,8 @@ type ie struct {
 
 // parseIEs parses zero or more ies from a byte slice.
 // Reference:
-//   https://www.safaribooksonline.com/library/view/80211-wireless-networks/0596100523/ch04.html#wireless802dot112-CHP-4-FIG-31
+//
+//	https://www.safaribooksonline.com/library/view/80211-wireless-networks/0596100523/ch04.html#wireless802dot112-CHP-4-FIG-31
 func parseIEs(b []byte) ([]ie, error) {
 	var ies []ie
 	var i int
