@@ -174,7 +174,7 @@ type BSSLoad struct {
 	// Version of the BSS Load Element. Can be 1 or 2.
 	Version int
 
-	// Station Count: total number of STA currently associated with this BSS.
+	// StationCount: total number of STA currently associated with this BSS.
 	StationCount uint16
 
 	// Channel Utilization: Percentage of time (linearly scaled 0 to 255) that the AP sensed the medium was busy. Calculated only for the primary channel.
@@ -222,7 +222,7 @@ type BSS struct {
 	// The status of the client within the BSS.
 	Status BSSStatus
 
-	// The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
+	// Load: The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
 	Load BSSLoad
 }
 

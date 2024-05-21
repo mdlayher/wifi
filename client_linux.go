@@ -572,8 +572,7 @@ func decodeBSSLoad(b []byte) (*BSSLoad, error) {
 		load.ChannelUtilization = b[2]                         // next 1 byte
 		load.AvailableAdmissionCapacity = uint16(b[3])         // next 1 byte
 	} else {
-		err := errInvalidBSSLoad
-		return nil, err
+		return nil, errInvalidBSSLoad
 	}
 	return &load, nil
 }
