@@ -49,6 +49,9 @@ func (c *Client) BSS(ifi *Interface) (*BSS, error) {
 }
 
 // StationInfo retrieves all station statistics about a WiFi interface.
+//
+// Since v0.2.0: if there are no stations, an empty slice is returned instead
+// of an error.
 func (c *Client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return c.c.StationInfo(ifi)
 }
