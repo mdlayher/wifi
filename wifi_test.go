@@ -3,6 +3,7 @@ package wifi
 import (
 	"reflect"
 	"testing"
+	"net"
 )
 
 func TestInterfaceTypeString(t *testing.T) {
@@ -177,5 +178,32 @@ func Test_parseIEs(t *testing.T) {
 					want, got)
 			}
 		})
+	}
+}
+
+func TestScanBSS(t *testing.T) {
+	ifi := &Interface{
+		Name: "wlp0s20f3",
+		Index: 3,
+		HardwareAddr: net.HardwareAddr{0x08, 0xd2, 0x3e, 0x65, 0xb8, 0x91},
+		PHY: 0,
+		Device: 2,
+		Frequency: 5765,
+	}
+	c, err := New()
+	if err != nil {
+		t.Fatalf("%+v\n", err)
+	}
+	defer c.Close()
+	err = c.c.TriggerScan(ifi)
+	if err != nil {
+		t.Fatalf("%+v\n", err)
+	}
+	all_bss, err := c.c.AllBSS(ifi)
+	if err != nil {
+		t.Fatalf("%+v\n", err)
+	}
+	for _, bss := range all_bss {
+		t.Logf("%+v\n", bss)
 	}
 }

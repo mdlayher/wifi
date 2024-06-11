@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net"
 	"os"
 	"time"
@@ -166,6 +168,87 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	}
 
 	return parseBSS(msgs)
+}
+
+// AllBSS requests that nl80211 return all the BSS around the specified Interface.
+func (c *client) AllBSS(ifi *Interface) ([]*BSS, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_SCAN,
+		netlink.Dump,
+		ifi,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return parseAllBSS(msgs)
+}
+
+// 
+func (c *client) TriggerScan(ifi *Interface) error {
+	// need a new socket to receive multicast message about scan status from kernel
+	informer := make(chan uint8)
+	var err error
+	go func(informer chan<- uint8) {
+		conn, err := genetlink.Dial(nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		family, err := conn.GetFamily(unix.NL80211_GENL_NAME)
+		if err != nil {
+			return
+		}
+		for _, group := range family.Groups {
+			if group.Name == unix.NL80211_MULTICAST_GROUP_SCAN {
+				err = conn.JoinGroup(group.ID)
+				if err != nil {
+					return 
+				}
+			}
+		}
+		informer<-scan_start
+		for {
+			genl_msgs, _, err := conn.Receive()
+			if err != nil {
+				return
+			}
+			for _, msg := range genl_msgs {
+				switch msg.Header.Command {
+				case unix.NL80211_CMD_TRIGGER_SCAN:
+					continue
+				case unix.NL80211_CMD_SCAN_ABORTED:
+					informer<-scan_abort
+					goto END
+				case unix.NL80211_CMD_NEW_SCAN_RESULTS:
+					informer<-scan_done
+					goto END
+				}
+			}
+		}
+	END:
+		return
+	}(informer) 
+	if err != nil {
+		return err
+	}
+	// scan starts
+	<-informer
+	_, err = c.get(
+		unix.NL80211_CMD_TRIGGER_SCAN,
+		netlink.Acknowledge,
+		ifi,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	// wait for kernel to inform the scan status
+	if status := <-informer; status == scan_abort {
+		return errors.New("NL80211 Scan aborted by kernel")
+	}
+
+	return nil
 }
 
 // StationInfo requests that nl80211 return all station info for the specified
@@ -349,6 +432,40 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 	}
 
 	return nil, os.ErrNotExist
+}
+
+// parseAllBSS parses all the BSS from nl80211 BSS messages
+func parseAllBSS(msgs []genetlink.Message) ([]*BSS, error) {
+	fmt.Println(len(msgs))
+	all_bss := make([]*BSS, 0, len(msgs))
+	for _, m := range msgs {
+		attrs, err := netlink.UnmarshalAttributes(m.Data)
+		if err != nil {
+			return nil, err
+		}
+		
+		var bss BSS
+		for _, a := range attrs {
+			if a.Type != unix.NL80211_ATTR_BSS {
+				continue
+			}
+
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return nil, err
+			}
+			
+			if !attrsContain(nattrs, unix.NL80211_BSS_STATUS) {
+				bss.Status = BSSStatusDisAssociated
+			}
+
+			if err := (&bss).parseAttributes(nattrs); err != nil {
+				continue
+			}
+		}
+		all_bss = append(all_bss, &bss)
+	}
+	return all_bss, nil
 }
 
 // parseAttributes parses netlink attributes into a BSS's fields.
