@@ -48,6 +48,14 @@ func (c *Client) BSS(ifi *Interface) (*BSS, error) {
 	return c.c.BSS(ifi)
 }
 
+func (c *Client) AllBSS(ifi *Interface) ([]*BSS, error) {
+	return c.c.AllBSS(ifi)
+}
+
+func (c *Client) TriggerScan(ifi *Interface) error {
+	return c.c.TriggerScan(ifi)
+}
+
 // StationInfo retrieves all station statistics about a WiFi interface.
 //
 // Since v0.2.0: if there are no stations, an empty slice is returned instead

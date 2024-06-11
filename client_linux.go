@@ -184,7 +184,7 @@ func (c *client) AllBSS(ifi *Interface) ([]*BSS, error) {
 	return parseAllBSS(msgs)
 }
 
-// 
+// trigger the kernel to scan APs. It will take about 5 seconds.
 func (c *client) TriggerScan(ifi *Interface) error {
 	// need a new socket to receive multicast message about scan status from kernel
 	informer := make(chan uint8)
