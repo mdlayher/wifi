@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
+	"errors"
 	"net"
 	"os"
 	"time"
@@ -18,6 +19,9 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/sys/unix"
 )
+
+// errNotSupported is returned when an operation is not supported
+var errNotSupported = errors.New("not supported")
 
 // A client is the Linux implementation of osClient, which makes use of
 // netlink, generic netlink, and nl80211 to provide access to WiFi device
@@ -116,8 +120,16 @@ func (c *client) Disconnect(ifi *Interface) error {
 // ConnectWPAPSK starts connecting the interface to the specified SSID using
 // WPA.
 func (c *client) ConnectWPAPSK(ifi *Interface, ssid, psk string) error {
+	support, err := c.checkExtFeature(ifi, unix.NL80211_EXT_FEATURE_4WAY_HANDSHAKE_STA_PSK)
+	if err != nil {
+		return err
+	}
+	if !support {
+		return errNotSupported
+	}
+
 	// Ask nl80211 to connect to the specified SSID with key..
-	_, err := c.get(
+	_, err = c.get(
 		unix.NL80211_CMD_CONNECT,
 		netlink.Acknowledge,
 		ifi,
@@ -573,4 +585,40 @@ func decodeBSSLoad(b []byte) (*BSSLoad, error) {
 		return nil, errInvalidBSSLoad
 	}
 	return &load, nil
+}
+
+// checkExtFeature Checks if a physical interface supports a extended feature
+func (c *client) checkExtFeature(ifi *Interface, feature uint) (bool, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_WIPHY,
+		netlink.Dump,
+		ifi,
+		func(ae *netlink.AttributeEncoder) {
+			ae.Flag(unix.NL80211_ATTR_SPLIT_WIPHY_DUMP, true)
+		},
+	)
+	if err != nil {
+		return false, err
+	}
+
+	var features []byte
+found:
+	for i := range msgs {
+		attrs, err := netlink.UnmarshalAttributes(msgs[i].Data)
+		if err != nil {
+			return false, err
+		}
+		for _, a := range attrs {
+			if a.Type == unix.NL80211_ATTR_EXT_FEATURES {
+				features = a.Data
+				break found
+			}
+		}
+	}
+
+	if feature/8 >= uint(len(features)) {
+		return false, nil
+	}
+
+	return (features[feature/8]&(1<<(feature%8)) != 0), nil
 }
