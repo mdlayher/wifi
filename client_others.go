@@ -6,6 +6,7 @@ package wifi
 import (
 	"fmt"
 	"runtime"
+	"time"
 )
 
 // errUnimplemented is returned by all functions on platforms that
@@ -24,3 +25,6 @@ func (*client) StationInfo(_ *Interface) ([]*StationInfo, error) { return nil, e
 func (*client) Connect(_ *Interface, _ string) error             { return errUnimplemented }
 func (*client) Disconnect(_ *Interface) error                    { return errUnimplemented }
 func (*client) ConnectWPAPSK(_ *Interface, _, _ string) error    { return errUnimplemented }
+func (*client) SetDeadline(t time.Time) error                    { return errUnimplemented }
+func (*client) SetReadDeadline(t time.Time) error                { return errUnimplemented }
+func (*client) SetWriteDeadline(t time.Time) error               { return errUnimplemented }

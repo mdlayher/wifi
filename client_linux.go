@@ -195,6 +195,21 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return stations, nil
 }
 
+// SetDeadline sets the read and write deadlines associated with the connection.
+func (c *client) SetDeadline(t time.Time) error {
+	return c.c.SetDeadline(t)
+}
+
+// SetReadDeadline sets the read deadline associated with the connection.
+func (c *client) SetReadDeadline(t time.Time) error {
+	return c.c.SetReadDeadline(t)
+}
+
+// SetWriteDeadline sets the write deadline associated with the connection.
+func (c *client) SetWriteDeadline(t time.Time) error {
+	return c.c.SetWriteDeadline(t)
+}
+
 // get performs a request/response interaction with nl80211.
 func (c *client) get(
 	cmd uint8,
