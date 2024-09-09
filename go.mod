@@ -7,7 +7,7 @@ require (
 	github.com/mdlayher/genetlink v1.3.2
 	github.com/mdlayher/netlink v1.7.2
 	golang.org/x/crypto v0.25.0
-	golang.org/x/sys v0.22.0
+	golang.org/x/sys v0.24.0
 )
 
 require (
