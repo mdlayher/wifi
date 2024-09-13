@@ -241,6 +241,9 @@ const (
 
 	// BSSStatusIBSSJoined indicates that a client has joined an independent BSS.
 	BSSStatusIBSSJoined
+
+	// BSSStatusDisAssociated indicates that the current interface is not associated with the BSS
+	BSSStatusDisAssociated
 )
 
 // String returns the string representation of a BSSStatus.
@@ -252,6 +255,8 @@ func (s BSSStatus) String() string {
 		return "associated"
 	case BSSStatusIBSSJoined:
 		return "IBSS joined"
+	case BSSStatusDisAssociated:
+		return "disassociated"
 	default:
 		return fmt.Sprintf("unknown(%d)", s)
 	}
@@ -304,3 +309,10 @@ func parseIEs(b []byte) ([]ie, error) {
 
 	return ies, nil
 }
+
+// List of scan status
+const (
+	scan_start = iota
+	scan_abort
+	scan_done
+)
