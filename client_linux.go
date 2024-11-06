@@ -195,6 +195,32 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return stations, nil
 }
 
+// SurveyInfo requests that nl80211 return a list of survey information for the
+// specified Interface.
+func (c *client) SurveyInfo(ifi *Interface) ([]*SurveyInfo, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_SURVEY,
+		netlink.Dump,
+		ifi,
+		func(ae *netlink.AttributeEncoder) {
+			if ifi.HardwareAddr != nil {
+				ae.Bytes(unix.NL80211_ATTR_MAC, ifi.HardwareAddr)
+			}
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	surveys := make([]*SurveyInfo, len(msgs))
+	for i := range msgs {
+		if surveys[i], err = parseSurveyInfo(msgs[i].Data); err != nil {
+			return nil, err
+		}
+	}
+	return surveys, nil
+}
+
 // SetDeadline sets the read and write deadlines associated with the connection.
 func (c *client) SetDeadline(t time.Time) error {
 	return c.c.SetDeadline(t)
@@ -537,6 +563,66 @@ func parseRateInfo(b []byte) (*rateInfo, error) {
 	info.Bitrate *= 100 * 1000
 
 	return &info, nil
+}
+
+// parseSurveyInfo parses a single SurveyInfo from a byte slice of netlink
+// attributes.
+func parseSurveyInfo(b []byte) (*SurveyInfo, error) {
+	attrs, err := netlink.UnmarshalAttributes(b)
+	if err != nil {
+		return nil, err
+	}
+
+	var info SurveyInfo
+	for _, a := range attrs {
+		switch a.Type {
+		case unix.NL80211_ATTR_SURVEY_INFO:
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := (&info).parseAttributes(nattrs); err != nil {
+				return nil, err
+			}
+
+			// Parsed the necessary data.
+			return &info, nil
+		}
+	}
+
+	// No survey info found
+	return nil, os.ErrNotExist
+}
+
+// parseAttributes parses netlink attributes into a SurveyInfo's fields.
+func (s *SurveyInfo) parseAttributes(attrs []netlink.Attribute) error {
+	for _, a := range attrs {
+		switch a.Type {
+		case unix.NL80211_SURVEY_INFO_FREQUENCY:
+			s.Frequency = int(nlenc.Uint32(a.Data))
+		case unix.NL80211_SURVEY_INFO_NOISE:
+			s.Noise = int(int8(a.Data[0]))
+		case unix.NL80211_SURVEY_INFO_IN_USE:
+			s.InUse = int(nlenc.Uint64(a.Data))
+		case unix.NL80211_SURVEY_INFO_TIME:
+			s.ChannelTime = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+		case unix.NL80211_SURVEY_INFO_TIME_BUSY:
+			s.ChannelTimeBusy = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+		case unix.NL80211_SURVEY_INFO_TIME_EXT_BUSY:
+			s.ChannelTimeExtBusy = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+		case unix.NL80211_SURVEY_INFO_TIME_BSS_RX:
+			s.ChannelTimeBssRx = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+		case unix.NL80211_SURVEY_INFO_TIME_RX:
+			s.ChannelTimeRx = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+		case unix.NL80211_SURVEY_INFO_TIME_TX:
+			s.ChannelTimeTx = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+		case unix.NL80211_SURVEY_INFO_TIME_SCAN:
+			s.ChannelTimeScan = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+		}
+	}
+
+	return nil
 }
 
 // attrsContain checks if a slice of netlink attributes contains an attribute

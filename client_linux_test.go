@@ -523,6 +523,26 @@ func (s *StationInfo) attributes() []netlink.Attribute {
 	}
 }
 
+func (s *SurveyInfo) attributes() []netlink.Attribute {
+	return []netlink.Attribute{
+		{
+			Type: unix.NL80211_ATTR_SURVEY_INFO,
+			Data: mustMarshalAttributes([]netlink.Attribute{
+				{Type: unix.NL80211_SURVEY_INFO_FREQUENCY, Data: nlenc.Uint32Bytes(uint32(s.Frequency))},
+				{Type: unix.NL80211_SURVEY_INFO_NOISE, Data: []byte{byte(int8(s.Noise))}},
+				{Type: unix.NL80211_SURVEY_INFO_IN_USE, Data: nlenc.Uint32Bytes(uint32(s.InUse))},
+				{Type: unix.NL80211_SURVEY_INFO_TIME, Data: nlenc.Uint64Bytes(uint64(s.ChannelTime / time.Millisecond))},
+				{Type: unix.NL80211_SURVEY_INFO_TIME_BUSY, Data: nlenc.Uint64Bytes(uint64(s.ChannelTimeBusy / time.Millisecond))},
+				{Type: unix.NL80211_SURVEY_INFO_TIME_EXT_BUSY, Data: nlenc.Uint64Bytes(uint64(s.ChannelTimeExtBusy / time.Millisecond))},
+				{Type: unix.NL80211_SURVEY_INFO_TIME_BSS_RX, Data: nlenc.Uint64Bytes(uint64(s.ChannelTimeBssRx / time.Millisecond))},
+				{Type: unix.NL80211_SURVEY_INFO_TIME_RX, Data: nlenc.Uint64Bytes(uint64(s.ChannelTimeRx / time.Millisecond))},
+				{Type: unix.NL80211_SURVEY_INFO_TIME_TX, Data: nlenc.Uint64Bytes(uint64(s.ChannelTimeTx / time.Millisecond))},
+				{Type: unix.NL80211_SURVEY_INFO_TIME_SCAN, Data: nlenc.Uint64Bytes(uint64(s.ChannelTimeScan / time.Millisecond))},
+			}),
+		},
+	}
+}
+
 func bitrateAttr(bitrate int) uint32 {
 	return uint32(bitrate / 100 / 1000)
 }
@@ -539,6 +559,10 @@ func mustMessages(t *testing.T, command uint8, want interface{}) genltest.Func {
 		as = append(as, xs)
 
 	case []*StationInfo:
+		for _, x := range xs {
+			as = append(as, x)
+		}
+	case []*SurveyInfo:
 		for _, x := range xs {
 			as = append(as, x)
 		}
@@ -604,5 +628,114 @@ func Test_decodeBSSLoadError(t *testing.T) {
 	_, err := decodeBSSLoad([]byte{3, 0, 8})
 	if err == nil {
 		t.Error("want error on bogus IE with wrong length")
+	}
+}
+
+func TestLinux_clientSurveryInfoMissingAttributeIsNotExist(t *testing.T) {
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// One message without station info attribute
+		return []genetlink.Message{{
+			Header: genetlink.Header{
+				Command: unix.NL80211_CMD_GET_SURVEY,
+			},
+			Data: mustMarshalAttributes([]netlink.Attribute{{
+				Type: unix.NL80211_ATTR_IFINDEX,
+				Data: nlenc.Uint32Bytes(1),
+			}}),
+		}}, nil
+	})
+
+	_, err := c.StationInfo(&Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	})
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected is not exist, got: %v", err)
+	}
+}
+
+func TestLinux_clientSurveyInfoNoMessagesIsNotExist(t *testing.T) {
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// No messages about station info at the generic netlink level.
+		// Caller will interpret this as no station info.
+		return nil, io.EOF
+	})
+
+	info, err := c.SurveyInfo(&Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	})
+	if err != nil {
+		t.Fatalf("undexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(info, []*SurveyInfo{}) {
+		t.Fatalf("expected info to be an empty slice, got %v", info)
+	}
+}
+
+func TestLinux_clientSurveyInfoOK(t *testing.T) {
+	want := []*SurveyInfo{
+		{
+			Frequency:          2412,
+			Noise:              -95,
+			InUse:              1,
+			ChannelTime:        100 * time.Millisecond,
+			ChannelTimeBusy:    50 * time.Millisecond,
+			ChannelTimeExtBusy: 10 * time.Millisecond,
+			ChannelTimeBssRx:   20 * time.Millisecond,
+			ChannelTimeRx:      30 * time.Millisecond,
+			ChannelTimeTx:      40 * time.Millisecond,
+			ChannelTimeScan:    5 * time.Millisecond,
+		},
+		{
+			Frequency:          2437,
+			Noise:              -90,
+			InUse:              0,
+			ChannelTime:        200 * time.Millisecond,
+			ChannelTimeBusy:    100 * time.Millisecond,
+			ChannelTimeExtBusy: 20 * time.Millisecond,
+			ChannelTimeBssRx:   40 * time.Millisecond,
+			ChannelTimeRx:      60 * time.Millisecond,
+			ChannelTimeTx:      80 * time.Millisecond,
+			ChannelTimeScan:    10 * time.Millisecond,
+		},
+	}
+
+	ifi := &Interface{
+		Index:        1,
+		HardwareAddr: net.HardwareAddr{0xe, 0xad, 0xbe, 0xef, 0xde, 0xad},
+	}
+
+	const flags = netlink.Request | netlink.Dump
+
+	msgsFn := mustMessages(t, unix.NL80211_CMD_GET_SURVEY, want)
+
+	c := testClient(t, genltest.CheckRequest(familyID, unix.NL80211_CMD_GET_SURVEY, flags,
+		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
+			// Also verify that the correct interface attributes are
+			// present in the request.
+			attrs, err := netlink.UnmarshalAttributes(greq.Data)
+			if err != nil {
+				t.Fatalf("failed to unmarshal attributes: %v", err)
+			}
+
+			if diff := diffNetlinkAttributes(ifi.idAttrs(), attrs); diff != "" {
+				t.Fatalf("unexpected request netlink attributes (-want +got):\n%s", diff)
+			}
+
+			return msgsFn(greq, nreq)
+		},
+	))
+
+	got, err := c.SurveyInfo(ifi)
+	if err != nil {
+		log.Fatalf("unexpected error: %v", err)
+	}
+
+	for i := range want {
+		if !reflect.DeepEqual(want[i], got[i]) {
+			t.Fatalf("unexpected station info:\n- want: %v\n-  got: %v",
+				want[i], got[i])
+		}
 	}
 }
