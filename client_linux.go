@@ -362,6 +362,10 @@ func (ifi *Interface) parseAttributes(attrs []netlink.Attribute) error {
 			ifi.Device = int(nlenc.Uint64(a.Data))
 		case unix.NL80211_ATTR_WIPHY_FREQ:
 			ifi.Frequency = int(nlenc.Uint32(a.Data))
+		case unix.NL80211_ATTR_CHANNEL_WIDTH:
+			// NOTE: ChannelWidth copies the ordering of nl80211's channel width
+			// constants. This may not be the case on other operating systems.
+			ifi.ChannelWidth = ChannelWidth(nlenc.Uint32(a.Data))
 		}
 	}
 
