@@ -89,19 +89,13 @@ func (c *client) Interfaces() ([]*Interface, error) {
 
 // PHY requests that nl80211 return information for the physical device
 // specified by the index.
-func (c *client) PHY(n int) (*PHY, error) {
-	attrs := []netlink.Attribute{
-		{
-			Type: unix.NL80211_ATTR_WIPHY,
-			Data: nlenc.Uint32Bytes(uint32(n)),
-		},
-	}
-	phys, err := c.getPHYs(attrs)
+func (c *client) PHY(n uint32) (*PHY, error) {
+	phys, err := c.getPHYs(&n)
 	if err != nil {
 		return nil, err
 	}
 	if len(phys) == 0 {
-		return nil, fmt.Errorf("No PHY with index %d", n)
+		return nil, fmt.Errorf("no PHY with index %d", n)
 	}
 	return phys[0], nil
 }
@@ -109,41 +103,25 @@ func (c *client) PHY(n int) (*PHY, error) {
 // PHYs requests that nl80211 return information for all wireless physical
 // devices.
 func (c *client) PHYs() ([]*PHY, error) {
-	attrs := make([]netlink.Attribute, 0)
-	return c.getPHYs(attrs)
+	return c.getPHYs(nil)
 }
 
 // getPHYs is the back-end for PHY() and PHYs(): building and making the netlink
 // call, and parsing the response.
-func (c *client) getPHYs(attrs []netlink.Attribute) ([]*PHY, error) {
+func (c *client) getPHYs(n *uint32) ([]*PHY, error) {
 	// The kernel, as of 3713b4e364eff (3.10), doesn't emit all information
 	// unless SplitWiphyDump is set.  We could check for it by issuing
 	// CmdGetProtocolFeatures and seeing if ProtocolFeatureSplitWiphyDump is
 	// set, if we care about kernels that old ...
-	attrs = append(attrs, netlink.Attribute{Type: unix.NL80211_ATTR_SPLIT_WIPHY_DUMP})
-	nlattrs, err := netlink.MarshalAttributes(attrs)
+	msgs, err := c.get(unix.NL80211_CMD_GET_WIPHY, netlink.Dump, nil, func(ae *netlink.AttributeEncoder) {
+		ae.Flag(unix.NL80211_ATTR_SPLIT_WIPHY_DUMP, true)
+		if n != nil {
+			ae.Uint32(unix.NL80211_ATTR_WIPHY, *n)
+		}
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	req := genetlink.Message{
-		Header: genetlink.Header{
-			Command: unix.NL80211_CMD_GET_WIPHY,
-			Version: c.familyVersion,
-		},
-		Data: nlattrs,
-	}
-
-	flags := netlink.Request | netlink.Dump
-	msgs, err := c.c.Execute(req, c.familyID, flags)
-	if err != nil {
-		return nil, err
-	}
-
-	//if err := c.checkMessages(msgs, unix.NL80211_CMD_NEW_WIPHY); err != nil {
-	//	return nil, err
-	//}
-
 	return parsePHYs(msgs)
 }
 

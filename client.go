@@ -56,7 +56,7 @@ func (c *Client) BSS(ifi *Interface) (*BSS, error) {
 func (c *Client) PHYs() ([]*PHY, error) { return c.c.PHYs() }
 
 // PHY returns the WiFi device corresponding to the specified index.
-func (c *Client) PHY(index int) (*PHY, error) { return c.c.PHY(index) }
+func (c *Client) PHY(index uint32) (*PHY, error) { return c.c.PHY(index) }
 
 // StationInfo retrieves all station statistics about a WiFi interface.
 //
