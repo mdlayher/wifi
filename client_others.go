@@ -20,6 +20,8 @@ func newClient() (*client, error) { return nil, errUnimplemented }
 
 func (*client) Close() error                                     { return errUnimplemented }
 func (*client) Interfaces() ([]*Interface, error)                { return nil, errUnimplemented }
+func (c *client) PHY(_ uint32) (*PHY, error)                     { return nil, errUnimplemented }
+func (c *client) PHYs() ([]*PHY, error)                          { return nil, errUnimplemented }
 func (*client) BSS(_ *Interface) (*BSS, error)                   { return nil, errUnimplemented }
 func (*client) StationInfo(_ *Interface) ([]*StationInfo, error) { return nil, errUnimplemented }
 func (*client) Connect(_ *Interface, _ string) error             { return errUnimplemented }
