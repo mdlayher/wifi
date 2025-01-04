@@ -254,7 +254,7 @@ func (c *client) get(
 	cmd uint8,
 	flags netlink.HeaderFlags,
 	ifi *Interface,
-// May be nil; used to apply optional parameters.
+	// May be nil; used to apply optional parameters.
 	params func(ae *netlink.AttributeEncoder),
 ) ([]genetlink.Message, error) {
 	ae := netlink.NewAttributeEncoder()
@@ -614,8 +614,15 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 		case unix.NL80211_BAND_ATTR_VHT_CAPA:
 			ba.VHTCapabilities = decodeVHTCapabilities(ba.VHTCapabilities, nlenc.Uint32(attr.Data))
 		case unix.NL80211_BAND_ATTR_HT_MCS_SET:
+			if ba.HTCapabilities == nil {
+				ba.HTCapabilities = new(HTCapabilities)
+			}
+			copy(ba.HTCapabilities.SupportedMCS[:], attr.Data)
 		case unix.NL80211_BAND_ATTR_VHT_MCS_SET:
-			// TODO Handle these
+			if ba.VHTCapabilities == nil {
+				ba.VHTCapabilities = new(VHTCapabilities)
+			}
+			copy(ba.VHTCapabilities.SupportedMCS[:], attr.Data)
 
 		case unix.NL80211_BAND_ATTR_RATES:
 			nattrs, err := netlink.UnmarshalAttributes(attr.Data)
@@ -682,7 +689,7 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 }
 
 // decodeHTCapabilities parses a 16-bit integer into an HTCapabilities struct
-// based on information from an HT Capabilities Info field (BandAttrHtCapa).
+// based on information from an HT Capabilities Info field (NL80211_BAND_ATTR_HT_CAPA).
 // Create a new one if nil is passed in, but allow for the struct to have other
 // fields already set.
 func decodeHTCapabilities(htcap *HTCapabilities, cap uint16) *HTCapabilities {
@@ -705,6 +712,11 @@ func decodeHTCapabilities(htcap *HTCapabilities, cap uint16) *HTCapabilities {
 
 	return htcap
 }
+
+// decodeVHTCapabilities parses a 32-bit integer into an VHTCapabilities struct
+// based on information from an VHT Capabilities Info field (NL80211_BAND_ATTR_VHT_CAPA).
+// Create a new one if nil is passed in, but allow for the struct to have other
+// fields already set.
 func decodeVHTCapabilities(vhtcap *VHTCapabilities, cap uint32) *VHTCapabilities {
 	if vhtcap == nil {
 		vhtcap = new(VHTCapabilities)
@@ -737,7 +749,7 @@ func decodeVHTCapabilities(vhtcap *VHTCapabilities, cap uint32) *VHTCapabilities
 	vhtcap.RXAntennaPattern = cap&(1<<28) != 0
 	vhtcap.TXAntennaPattern = cap&(1<<29) != 0
 	vhtcap.ExtendedNSSBW = int((cap >> 30) & 0x7)
-	fmt.Printf("%d\n", cap)
+
 	return vhtcap
 }
 

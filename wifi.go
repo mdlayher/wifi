@@ -360,6 +360,11 @@ type HTCapabilities struct {
 	// Maximum receivable A-MPDU (Aggregated MAC Protocol Data Unit) frame
 	// size.
 	MaxRxAMPDULength int
+
+	// Supported MCS for HT mode
+	// Todo:
+	// - Parse them are according to Section 7.3.2.56.4 IEEE 80211n
+	SupportedMCS [16]byte
 }
 
 // VHTCapabilities represents 802.11ac (Very High Throughput) capabilities.
@@ -432,6 +437,11 @@ type VHTCapabilities struct {
 	//Indicates whether the STA is capable of interpreting the Extended NSS BW
 	//Support subfield of the VHT Capabilities Information field.
 	ExtendedNSSBW int
+
+	// Supported MCS for VHT mode
+	// Todo:
+	// - Parse them according to Section 8.4.2.160.3 IEEE Std 80211ac-2013
+	SupportedMCS [8]byte
 }
 
 // FrequencyAttrs represents the attributes of a WiFi frequency/channel.
