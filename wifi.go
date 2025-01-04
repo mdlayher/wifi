@@ -291,6 +291,9 @@ type BandAttributes struct {
 	// High Throughput (802.11n) device capabilities (nil if not supported).
 	HTCapabilities *HTCapabilities
 
+	// Very High Throughput (802.11ac) device capabilities (nil if not supported).
+	VHTCapabilities *VHTCapabilities
+
 	// Minimum spacing between A-MPDU frames.  Used for both HT and VHT
 	// capable devices.
 	MinRxAMPDUSpacing time.Duration
@@ -357,6 +360,78 @@ type HTCapabilities struct {
 	// Maximum receivable A-MPDU (Aggregated MAC Protocol Data Unit) frame
 	// size.
 	MaxRxAMPDULength int
+}
+
+// VHTCapabilities represents 802.11ac (Very High Throughput) capabilities.
+//
+// The fields represent those in the VHT Capabilities element (802.11-2020,
+// 9.4.2.157).
+type VHTCapabilities struct {
+	// Maximum MPDU length supported by the device.
+	MaxMPDULength int
+
+	// Device supports 160MHz channel width.
+	VHT160 bool
+
+	// Device supports 80+80MHz channel width (non-contiguous 160MHz) along with 160MHz channel.
+	VHT8080 bool
+
+	// Device supports receiving Low Density Parity Check codes.
+	RXLDPC bool
+
+	// Device supports short guard intervals in 80MHz channels.
+	ShortGI80 bool
+
+	// Device supports short guard intervals in 160MHz and 80+80MHz channels.
+	ShortGI160 bool
+
+	// Device supports transmission of at least 2x1 Space-Time Block Coding transmission.
+	TXSTBC bool
+
+	// Number of STBC receive streams supported by the device. Valid values are 0-4.
+	RXSTBC int
+
+	// Device supports SU (Single User) Beamforming as a transmitter.
+	SuBeamFormer bool
+
+	// Device supports SU (Single User) Beamforming as a receiver.
+	SuBeamFormee bool
+
+	// Number of sounding antennas supported by the device for SU Beamforming transmission.
+	BFAntenna int
+
+	// Maximum sounding dimensions supported by the device for SU Beamforming.
+	SoundingDimension int
+
+	// Device supports MU (Multi-User) Beamforming as a transmitter.
+	MuBeamformer bool
+
+	// Device supports MU (Multi-User) Beamforming as a receiver.
+	MuBeamformee bool
+
+	// Device supports VHT TXOP power save mode.
+	VTHTXOPPS bool
+
+	// Device supports HT Control field when operating in VHT mode.
+	HTCVHT bool
+
+	// Maximum A-MPDU (Aggregated MAC Protocol Data Unit) frame size supported by the device.
+	MaxAMPDU int
+
+	// Device supports VHT Link Adaptation capabilities. Valid values
+	// specify the type of link adaptation supported (e.g., no feedback,
+	// unsolicited feedback, or both).
+	VHTLinkAdapt int
+
+	// Device supports receive antenna pattern consistency.
+	RXAntennaPattern bool
+
+	// Device supports transmit antenna pattern consistency.
+	TXAntennaPattern bool
+
+	//Indicates whether the STA is capable of interpreting the Extended NSS BW
+	//Support subfield of the VHT Capabilities Information field.
+	ExtendedNSSBW int
 }
 
 // FrequencyAttrs represents the attributes of a WiFi frequency/channel.

@@ -254,7 +254,7 @@ func (c *client) get(
 	cmd uint8,
 	flags netlink.HeaderFlags,
 	ifi *Interface,
-	// May be nil; used to apply optional parameters.
+// May be nil; used to apply optional parameters.
 	params func(ae *netlink.AttributeEncoder),
 ) ([]genetlink.Message, error) {
 	ae := netlink.NewAttributeEncoder()
@@ -611,8 +611,9 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 				ba.MinRxAMPDUSpacing = (1 << (spacing - 1)) * time.Microsecond / 4
 			}
 
-		case unix.NL80211_BAND_ATTR_HT_MCS_SET:
 		case unix.NL80211_BAND_ATTR_VHT_CAPA:
+			ba.VHTCapabilities = decodeVHTCapabilities(ba.VHTCapabilities, nlenc.Uint32(attr.Data))
+		case unix.NL80211_BAND_ATTR_HT_MCS_SET:
 		case unix.NL80211_BAND_ATTR_VHT_MCS_SET:
 			// TODO Handle these
 
@@ -703,6 +704,41 @@ func decodeHTCapabilities(htcap *HTCapabilities, cap uint16) *HTCapabilities {
 	htcap.LSIGTxOPProtection = cap&(1<<15) != 0
 
 	return htcap
+}
+func decodeVHTCapabilities(vhtcap *VHTCapabilities, cap uint32) *VHTCapabilities {
+	if vhtcap == nil {
+		vhtcap = new(VHTCapabilities)
+	}
+	switch int(cap & 0x3) {
+	case 0:
+		vhtcap.MaxMPDULength = 3895
+	case 1:
+		vhtcap.MaxMPDULength = 7991
+	case 2:
+		vhtcap.MaxMPDULength = 11454
+	}
+	vhtcap.VHT160 = cap&(1<<2) != 0
+	vhtcap.VHT8080 = cap&(1<<3) != 0
+	vhtcap.RXLDPC = cap&(1<<4) != 0
+	vhtcap.ShortGI80 = cap&(1<<5) != 0
+	vhtcap.ShortGI160 = cap&(1<<6) != 0
+	vhtcap.TXSTBC = cap&(1<<7) != 0
+	vhtcap.RXSTBC = int((cap >> 8) & 0x7)
+	vhtcap.SuBeamFormer = cap&(1<<11) != 0
+	vhtcap.SuBeamFormee = cap&(1<<12) != 0
+	vhtcap.BFAntenna = int((cap>>13)&0x7) - 1
+	vhtcap.SoundingDimension = int((cap >> 16) & 0x7)
+	vhtcap.MuBeamformer = cap&(1<<19) != 0
+	vhtcap.MuBeamformee = cap&(1<<20) != 0
+	vhtcap.VTHTXOPPS = cap&(1<<21) != 0
+	vhtcap.HTCVHT = cap&(1<<22) != 0
+	vhtcap.MaxAMPDU = 2 ^ (13 + int((cap>>23)&0x2)) - 1
+	vhtcap.VHTLinkAdapt = int((cap >> 27) & 0x3)
+	vhtcap.RXAntennaPattern = cap&(1<<28) != 0
+	vhtcap.TXAntennaPattern = cap&(1<<29) != 0
+	vhtcap.ExtendedNSSBW = int((cap >> 30) & 0x7)
+	fmt.Printf("%d\n", cap)
+	return vhtcap
 }
 
 // parseAttributes parses netlink attributes into a BSS's fields.
