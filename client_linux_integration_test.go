@@ -52,14 +52,14 @@ func TestIntegrationLinuxConcurrent(t *testing.T) {
 	}
 }
 
-func execN(t *testing.T, n int, expect []string, worker_id int) {
+func execN(t *testing.T, n int, expect []string, workerID int) {
 	c := testClient(t)
 
 	names := make(map[string]int)
 	for i := 0; i < n; i++ {
 		ifis, err := c.Interfaces()
 		if err != nil {
-			panicf("[worker_id %d; iteration %d] failed to retrieve interfaces: %v", worker_id, i, err)
+			panicf("[worker_id %d; iteration %d] failed to retrieve interfaces: %v", workerID, i, err)
 		}
 
 		for _, ifi := range ifis {
@@ -69,13 +69,13 @@ func execN(t *testing.T, n int, expect []string, worker_id int) {
 
 			if _, err := c.StationInfo(ifi); err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					panicf("[worker_id %d; iteration %d] failed to retrieve station info for device %s: %v", worker_id, i, ifi.Name, err)
+					panicf("[worker_id %d; iteration %d] failed to retrieve station info for device %s: %v", workerID, i, ifi.Name, err)
 				}
 			}
 
 			if _, err := c.SurveyInfo(ifi); err != nil {
 				if !errors.Is(err, os.ErrNotExist) {
-					panicf("[worker_id %d; iteration %d] failed to retrieve survey info for device %s: %v", worker_id, i, ifi.Name, err)
+					panicf("[worker_id %d; iteration %d] failed to retrieve survey info for device %s: %v", workerID, i, ifi.Name, err)
 				}
 			}
 			names[ifi.Name]++
@@ -85,10 +85,10 @@ func execN(t *testing.T, n int, expect []string, worker_id int) {
 	for _, e := range expect {
 		nn, ok := names[e]
 		if !ok {
-			panicf("[worker_id %d] did not find interface %q during test", worker_id, e)
+			panicf("[worker_id %d] did not find interface %q during test", workerID, e)
 		}
 		if nn != n {
-			panicf("[worker_id %d] wanted to find %q %d times, found %d", worker_id, e, n, nn)
+			panicf("[worker_id %d] wanted to find %q %d times, found %d", workerID, e, n, nn)
 		}
 	}
 }

@@ -197,9 +197,8 @@ func (l BSSLoad) String() string {
 		return fmt.Sprintf("BSSLoad Version: %d    stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d [*32us/s]\n",
 			l.Version, l.StationCount, l.ChannelUtilization, l.AvailableAdmissionCapacity,
 		)
-	} else {
-		return fmt.Sprintf("invalid BSSLoad Version: %d", l.Version)
 	}
+	return fmt.Sprintf("invalid BSSLoad Version: %d", l.Version)
 }
 
 // A BSS is an 802.11 basic service set.  It contains information about a wireless

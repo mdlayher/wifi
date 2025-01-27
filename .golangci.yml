@@ -1,0 +1,8 @@
+---
+output:
+  sort-results: true
+
+linters:
+  # Keep this list sorted alphabetically
+  enable:
+    - revive
