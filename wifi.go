@@ -304,3 +304,38 @@ func parseIEs(b []byte) ([]ie, error) {
 
 	return ies, nil
 }
+
+type SurveyInfo struct {
+	// The frequency in MHz of the channel.
+	Frequency int
+
+	// The noise level in dBm.
+	Noise int
+
+	// The time the radio has spent on this channel.
+	ChannelTime time.Duration
+
+	// The time the radio has spent on this channel while it was active.
+	ChannelTimeActive time.Duration
+
+	// The time the radio has spent on this channel while it was busy.
+	ChannelTimeBusy time.Duration
+
+	// The time the radio has spent on this channel while it was busy with external traffic.
+	ChannelTimeExtBusy time.Duration
+
+	// The time the radio has spent on this channel receiving data from a BSS.
+	ChannelTimeBssRx time.Duration
+
+	// The time the radio has spent on this channel receiving data.
+	ChannelTimeRx time.Duration
+
+	// The time the radio has spent on this channel transmitting data.
+	ChannelTimeTx time.Duration
+
+	// The time the radio has spent on this channel while it was scanning.
+	ChannelTimeScan time.Duration
+
+	// Indicates if the channel is currently in use.
+	InUse bool
+}

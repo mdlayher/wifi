@@ -60,6 +60,9 @@ func (c *Client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return c.c.StationInfo(ifi)
 }
 
+// SurveyInfo retrieves the survey information about a WiFi interface.
+func (c *Client) SurveyInfo(ifi *Interface) ([]*SurveyInfo, error) { return c.c.SurveyInfo(ifi) }
+
 // SetDeadline sets the read and write deadlines associated with the connection.
 func (c *Client) SetDeadline(t time.Time) error {
 	return c.c.SetDeadline(t)

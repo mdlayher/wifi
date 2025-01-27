@@ -73,6 +73,11 @@ func execN(t *testing.T, n int, expect []string, worker_id int) {
 				}
 			}
 
+			if _, err := c.SurveyInfo(ifi); err != nil {
+				if !errors.Is(err, os.ErrNotExist) {
+					panicf("[worker_id %d; iteration %d] failed to retrieve survey info for device %s: %v", worker_id, i, ifi.Name, err)
+				}
+			}
 			names[ifi.Name]++
 		}
 	}
