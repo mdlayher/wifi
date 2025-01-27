@@ -125,7 +125,7 @@ func (c *client) ConnectWPAPSK(ifi *Interface, ssid, psk string) error {
 		return err
 	}
 	if !support {
-		return errNotSupported
+		return ErrNotSupported
 	}
 
 	// Ask nl80211 to connect to the specified SSID with key..
