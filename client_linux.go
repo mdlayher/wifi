@@ -21,7 +21,7 @@ import (
 )
 
 // errNotSupported is returned when an operation is not supported
-var errNotSupported = errors.New("not supported")
+var ErrNotSupported = errors.New("not supported")
 
 // A client is the Linux implementation of osClient, which makes use of
 // netlink, generic netlink, and nl80211 to provide access to WiFi device
