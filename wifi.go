@@ -170,6 +170,9 @@ type Interface struct {
 // StationInfo contains statistics about a WiFi interface operating in
 // station mode.
 type StationInfo struct {
+	// The interface that this station is associated with.
+	InterfaceIndex int
+
 	// The hardware address of the station.
 	HardwareAddr net.HardwareAddr
 
@@ -347,6 +350,9 @@ func parseIEs(b []byte) ([]ie, error) {
 }
 
 type SurveyInfo struct {
+	// The interface that this station is associated with.
+	InterfaceIndex int
+
 	// The frequency in MHz of the channel.
 	Frequency int
 
