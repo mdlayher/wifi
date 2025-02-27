@@ -98,7 +98,7 @@ func (c *client) Interfaces() ([]*Interface, error) {
 		return nil, err
 	}
 
-	return parseInterfaces(msgs)
+	return ParseInterfaces(msgs)
 }
 
 // Connect starts connecting the interface to the specified ssid.
@@ -225,7 +225,7 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 
 	stations := make([]*StationInfo, len(msgs))
 	for i := range msgs {
-		if stations[i], err = parseStationInfo(msgs[i].Data); err != nil {
+		if stations[i], err = ParseStationInfo(msgs[i].Data); err != nil {
 			return nil, err
 		}
 	}
@@ -509,8 +509,9 @@ func parseGetScanResult(msgs []genetlink.Message) ([]*BSS, error) {
 }
 
 // parseInterfaces parses zero or more Interfaces from nl80211 interface
+// ParseInterfaces parses zero or more Interfaces from nl80211 interface
 // messages.
-func parseInterfaces(msgs []genetlink.Message) ([]*Interface, error) {
+func ParseInterfaces(msgs []genetlink.Message) ([]*Interface, error) {
 	ifis := make([]*Interface, 0, len(msgs))
 	for _, m := range msgs {
 		attrs, err := netlink.UnmarshalAttributes(m.Data)
@@ -661,9 +662,9 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 	return nil
 }
 
-// parseStationInfo parses StationInfo attributes from a byte slice of
+// ParseStationInfo parses StationInfo attributes from a byte slice of
 // netlink attributes.
-func parseStationInfo(b []byte) (*StationInfo, error) {
+func ParseStationInfo(b []byte) (*StationInfo, error) {
 	attrs, err := netlink.UnmarshalAttributes(b)
 	if err != nil {
 		return nil, err
