@@ -1,6 +1,7 @@
 package wifi
 
 import (
+	"context"
 	"time"
 )
 
@@ -50,6 +51,18 @@ func (c *Client) Interfaces() ([]*Interface, error) {
 // BSS retrieves the BSS associated with a WiFi interface.
 func (c *Client) BSS(ifi *Interface) (*BSS, error) {
 	return c.c.BSS(ifi)
+}
+
+// AccessPoints retrieves the currently known BSS around the specified Interface.
+func (c *Client) AccessPoints(ifi *Interface) ([]*BSS, error) {
+	return c.c.AccessPoints(ifi)
+}
+
+// Scan requests the wifi interface to scan for new access points.
+//
+// Use context.WithDeadline to set a timeout.
+func (c *Client) Scan(ctx context.Context, ifi *Interface) error {
+	return c.c.Scan(ctx, ifi)
 }
 
 // StationInfo retrieves all station statistics about a WiFi interface.

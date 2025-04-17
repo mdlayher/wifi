@@ -4,11 +4,13 @@
 package wifi_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/mdlayher/wifi"
 )
@@ -78,6 +80,7 @@ func execN(t *testing.T, n int, expect []string, workerID int) {
 					panicf("[worker_id %d; iteration %d] failed to retrieve survey info for device %s: %v", workerID, i, ifi.Name, err)
 				}
 			}
+
 			names[ifi.Name]++
 		}
 	}
@@ -111,4 +114,40 @@ func testClient(t *testing.T) *wifi.Client {
 
 func panicf(format string, a ...interface{}) {
 	panic(fmt.Sprintf(format, a...))
+}
+
+func TestClient_AccessPoints(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skipf("skipping, must be run as root")
+	}
+
+	c, err := wifi.New()
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	ifis, err := c.Interfaces()
+	if err != nil {
+		t.Fatalf("failed to retrieve interfaces: %v", err)
+	}
+
+	for _, ifi := range ifis {
+		if ifi.Name == "" || ifi.Type != wifi.InterfaceTypeStation {
+			continue
+		}
+
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(30*time.Second))
+		defer cancel()
+
+		err = c.Scan(ctx, ifi)
+		if err != nil {
+			t.Fatalf("failed to scan access points for device %s: %v", ifi.Name, err)
+		}
+
+		_, err := c.AccessPoints(ifi)
+		if err != nil {
+			t.Fatalf("failed to retrieve access points for device %s: %v", ifi.Name, err)
+		}
+
+	}
 }
