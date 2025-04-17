@@ -238,6 +238,9 @@ const (
 	// BSSStatusAssociated indicates that a client is associated with a BSS.
 	BSSStatusAssociated
 
+	// BSSStatusNotAssociated indicates that a client is not associated with a BSS.
+	BSSStatusNotAssociated
+
 	// BSSStatusIBSSJoined indicates that a client has joined an independent BSS.
 	BSSStatusIBSSJoined
 )
@@ -249,6 +252,8 @@ func (s BSSStatus) String() string {
 		return "authenticated"
 	case BSSStatusAssociated:
 		return "associated"
+	case BSSStatusNotAssociated:
+		return "unassociated"
 	case BSSStatusIBSSJoined:
 		return "IBSS joined"
 	default:
