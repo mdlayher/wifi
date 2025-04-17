@@ -1,8 +1,22 @@
----
-output:
-  sort-results: true
-
+version: "2"
 linters:
-  # Keep this list sorted alphabetically
   enable:
     - revive
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
