@@ -440,17 +440,10 @@ func listenNewScanResults(ctx context.Context, conn *genetlink.Conn, ifiIndex in
 				break
 			}
 
-			cmd := msg.Header.Command
-			if cmd == unix.NL80211_CMD_TRIGGER_SCAN {
-				continue
-			}
-
-			if cmd == unix.NL80211_CMD_SCAN_ABORTED {
+			switch msg.Header.Command {
+			case unix.NL80211_CMD_SCAN_ABORTED:
 				return ErrScanAborted
-			}
-
-			if cmd == unix.NL80211_CMD_NEW_SCAN_RESULTS {
-
+			case unix.NL80211_CMD_NEW_SCAN_RESULTS:
 				// attempt to verify the interface
 				attrs, err := netlink.UnmarshalAttributes(msg.Data)
 				if err != nil {
@@ -467,7 +460,10 @@ func listenNewScanResults(ctx context.Context, conn *genetlink.Conn, ifiIndex in
 				}
 
 				return nil
+			default:
+				continue
 			}
+
 		}
 	}
 
