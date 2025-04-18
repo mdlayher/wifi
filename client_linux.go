@@ -332,6 +332,7 @@ func (c *client) Scan(ctx context.Context, ifi *Interface) error {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	result := make(chan error, 1)
 	go func(ctx context.Context, conn *genetlink.Conn, ifiIndex int, familyVersion uint8, result chan<- error) {
@@ -345,20 +346,12 @@ func (c *client) Scan(ctx context.Context, ifi *Interface) error {
 
 	_, err = conn.Send(req, family.ID, flags)
 	if err != nil {
-
 		cancel()
-		err2 := <-result
-		if err2 != nil && !errors.Is(err2, context.DeadlineExceeded) {
-			err = errors.Join(err, err2)
-		}
-
-		return err
 	}
 
-	err = <-result
-	cancel()
+	err2 := <-result
 
-	return err
+	return errors.Join(err, err2)
 }
 
 // SetDeadline sets the read and write deadlines associated with the connection.
