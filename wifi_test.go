@@ -88,12 +88,16 @@ func TestBSSStatusString(t *testing.T) {
 			s: "associated",
 		},
 		{
+			t: BSSStatusNotAssociated,
+			s: "unassociated",
+		},
+		{
 			t: BSSStatusIBSSJoined,
 			s: "IBSS joined",
 		},
 		{
-			t: 3,
-			s: "unknown(3)",
+			t: 4,
+			s: "unknown(4)",
 		},
 	}
 

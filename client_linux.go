@@ -5,11 +5,13 @@ package wifi
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
 	"net"
 	"os"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -20,8 +22,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// errNotSupported is returned when an operation is not supported
-var ErrNotSupported = errors.New("not supported")
+var (
+	ErrNotSupported      = errors.New("not supported")
+	ErrScanGroupNotFound = errors.New("scan multicast group unavailable")
+	ErrScanAborted       = errors.New("scan aborted by the kernel")
+	ErrScanValidation    = errors.New("scan validation failed")
+)
 
 // A client is the Linux implementation of osClient, which makes use of
 // netlink, generic netlink, and nl80211 to provide access to WiFi device
@@ -30,6 +36,9 @@ type client struct {
 	c             *genetlink.Conn
 	familyID      uint16
 	familyVersion uint8
+
+	// scan is used to synchronize access to the Scan method.
+	scan sync.Mutex
 }
 
 // newClient dials a generic netlink connection and verifies that nl80211
@@ -67,6 +76,8 @@ func initClient(c *genetlink.Conn) (*client, error) {
 		c:             c,
 		familyID:      family.ID,
 		familyVersion: family.Version,
+
+		scan: sync.Mutex{},
 	}, nil
 }
 
@@ -180,6 +191,21 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	return parseBSS(msgs)
 }
 
+// AccessPoints requests that nl80211 return all currently known BSS
+// from the specified Interface.
+func (c *client) AccessPoints(ifi *Interface) ([]*BSS, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_SCAN,
+		netlink.Dump,
+		ifi,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return parseGetScanResult(msgs)
+}
+
 // StationInfo requests that nl80211 return all station info for the specified
 // Interface.
 func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
@@ -231,6 +257,105 @@ func (c *client) SurveyInfo(ifi *Interface) ([]*SurveyInfo, error) {
 		}
 	}
 	return surveys, nil
+}
+
+// Scan requests that nl80211 perform a scan for new access points using
+// the specified Interface. This process is long running and uses
+// a separate connection to nl80211.
+//
+// Use context.WithDeadline to set a timeout.
+//
+// If a scan is already in progress, this function will return a syscall.EBUSY
+// error. If the response cannot be validated, the returned error
+// will include ErrScanValidation.
+//
+// Use func AccessPoints to retrieve the results.
+func (c *client) Scan(ctx context.Context, ifi *Interface) error {
+	c.scan.Lock()
+	defer c.scan.Unlock()
+
+	// use secondary connection for multicast receives
+	conn, err := genetlink.Dial(&netlink.Config{Strict: true})
+	if err != nil {
+		return err
+	}
+
+	defer conn.Close()
+
+	if deadline, ok := ctx.Deadline(); ok {
+		err := conn.SetDeadline(deadline)
+		if err != nil {
+			return err
+		}
+	}
+
+	family, err := conn.GetFamily(unix.NL80211_GENL_NAME)
+	if err != nil {
+		return err
+	}
+
+	var id uint32
+	for _, group := range family.Groups {
+		if group.Name == unix.NL80211_MULTICAST_GROUP_SCAN {
+			err = conn.JoinGroup(group.ID)
+			if err != nil {
+				return err
+			}
+
+			id = group.ID
+			break
+		}
+	}
+
+	if id == 0 {
+		return ErrScanGroupNotFound
+	}
+
+	// Leave group on exit. Err is non-actionable
+	defer func() { _ = conn.LeaveGroup(id) }()
+
+	enc := netlink.NewAttributeEncoder()
+	enc.Nested(unix.NL80211_ATTR_SCAN_SSIDS, func(ae *netlink.AttributeEncoder) error {
+		ae.Bytes(unix.NL80211_SCHED_SCAN_MATCH_ATTR_SSID, nlenc.Bytes(""))
+		return nil
+	})
+
+	ifi.encode(enc)
+
+	data, err := enc.Encode()
+	if err != nil {
+		return err
+	}
+
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: unix.NL80211_CMD_TRIGGER_SCAN,
+			Version: c.familyVersion,
+		},
+		Data: data,
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	result := make(chan error, 1)
+	go func(ctx context.Context, conn *genetlink.Conn, ifiIndex int, familyVersion uint8, result chan<- error) {
+
+		defer close(result)
+		result <- listenNewScanResults(ctx, conn, ifiIndex, familyVersion)
+
+	}(ctx, conn, ifi.Index, c.familyVersion, result)
+
+	flags := netlink.Request | netlink.Acknowledge
+
+	_, err = conn.Send(req, family.ID, flags)
+	if err != nil {
+		cancel()
+	}
+
+	err2 := <-result
+
+	return errors.Join(err, err2)
 }
 
 // SetDeadline sets the read and write deadlines associated with the connection.
@@ -293,6 +418,94 @@ func (c *client) execute(
 		c.familyID,
 		netlink.Request|flags,
 	)
+}
+
+// listenNewScanResults listens for new scan results or scan abort messages
+// from the netlink connection. It processes the messages associated with the
+// specified interface index and family version, verifying attributes and
+// handling context cancellations.
+//
+// The caller should not receive on the given connection and is responsible
+// for closing it.
+func listenNewScanResults(ctx context.Context, conn *genetlink.Conn, ifiIndex int, familyVersion uint8) error {
+	for ctx.Err() == nil {
+		msgs, _, err := conn.Receive()
+		if err != nil {
+			return err
+		}
+
+		// test for context cancellation and abandon work if so
+		if ctx.Err() != nil {
+			return err
+		}
+
+		for _, msg := range msgs {
+			if msg.Header.Version != familyVersion {
+				break
+			}
+
+			switch msg.Header.Command {
+			case unix.NL80211_CMD_SCAN_ABORTED:
+				return ErrScanAborted
+			case unix.NL80211_CMD_NEW_SCAN_RESULTS:
+				// attempt to verify the interface
+				attrs, err := netlink.UnmarshalAttributes(msg.Data)
+				if err != nil {
+					return errors.Join(ErrScanValidation, err)
+				}
+
+				var intf Interface
+				if err := (&intf).parseAttributes(attrs); err != nil {
+					return errors.Join(ErrScanValidation, err)
+				}
+
+				if ifiIndex != intf.Index {
+					continue
+				}
+
+				return nil
+			default:
+				continue
+			}
+
+		}
+	}
+
+	return ctx.Err()
+}
+
+// parseGetScanResult parses all the BSS from nl80211 CMD_GET_SCAN response messages.
+func parseGetScanResult(msgs []genetlink.Message) ([]*BSS, error) {
+	// reimplementing https://github.com/mdlayher/wifi/pull/79
+	bsss := make([]*BSS, 0, len(msgs))
+	for _, m := range msgs {
+		attrs, err := netlink.UnmarshalAttributes(m.Data)
+		if err != nil {
+			return nil, err
+		}
+
+		var bss BSS
+		for _, a := range attrs {
+			if a.Type != unix.NL80211_ATTR_BSS {
+				continue
+			}
+
+			nattrs, err := netlink.UnmarshalAttributes(a.Data)
+			if err != nil {
+				return nil, err
+			}
+
+			if !attrsContain(nattrs, unix.NL80211_BSS_STATUS) {
+				bss.Status = BSSStatusNotAssociated
+			}
+
+			if err := (&bss).parseAttributes(nattrs); err != nil {
+				continue
+			}
+		}
+		bsss = append(bsss, &bss)
+	}
+	return bsss, nil
 }
 
 // parseInterfaces parses zero or more Interfaces from nl80211 interface
