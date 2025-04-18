@@ -283,7 +283,10 @@ func (c *client) Scan(ctx context.Context, ifi *Interface) error {
 	defer conn.Close()
 
 	if deadline, ok := ctx.Deadline(); ok {
-		conn.SetDeadline(deadline)
+		err := conn.SetDeadline(deadline)
+		if err != nil {
+			return err
+		}
 	}
 
 	family, err := conn.GetFamily(unix.NL80211_GENL_NAME)
@@ -308,7 +311,8 @@ func (c *client) Scan(ctx context.Context, ifi *Interface) error {
 		return ErrScanGroupNotFound
 	}
 
-	defer conn.LeaveGroup(id)
+	// Leave group on exit. Err is non-actionable
+	defer func() { _ = conn.LeaveGroup(id) }()
 
 	enc := netlink.NewAttributeEncoder()
 	enc.Nested(unix.NL80211_ATTR_SCAN_SSIDS, func(ae *netlink.AttributeEncoder) error {
@@ -338,7 +342,7 @@ func (c *client) Scan(ctx context.Context, ifi *Interface) error {
 	go func(ctx context.Context, conn *genetlink.Conn, ifiIndex int, familyVersion uint8, result chan<- error) {
 
 		defer close(result)
-		result <- listenNewScanResults(ctx, conn, ifi.Index, familyVersion)
+		result <- listenNewScanResults(ctx, conn, ifiIndex, familyVersion)
 
 	}(ctx, conn, ifi.Index, c.familyVersion, result)
 
