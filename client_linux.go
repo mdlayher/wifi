@@ -332,74 +332,33 @@ func (c *client) Scan(ctx context.Context, ifi *Interface) error {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	result := make(chan error, 1)
-	go func(ctx context.Context, conn *genetlink.Conn, result chan<- error) {
+	go func(ctx context.Context, conn *genetlink.Conn, ifiIndex int, familyVersion uint8, result chan<- error) {
 
 		defer close(result)
+		result <- listenNewScanResults(ctx, conn, ifi.Index, familyVersion)
 
-		for ctx.Err() == nil {
-			msgs, _, err := conn.Receive()
-			if err != nil {
-				result <- err
-				return
-			}
-
-			// test for context cancellation and abandon work if so
-			if ctx.Err() != nil {
-				result <- ctx.Err()
-				return
-			}
-
-			for _, msg := range msgs {
-				if msg.Header.Version != c.familyVersion {
-					break
-				}
-
-				cmd := msg.Header.Command
-				if cmd == unix.NL80211_CMD_TRIGGER_SCAN {
-					continue
-				}
-
-				if cmd == unix.NL80211_CMD_SCAN_ABORTED {
-					result <- ErrScanAborted
-					return
-				}
-
-				if cmd == unix.NL80211_CMD_NEW_SCAN_RESULTS {
-
-					// attempt to verify the interface
-					attrs, err := netlink.UnmarshalAttributes(msg.Data)
-					if err != nil {
-						result <- errors.Join(ErrScanValidation, err)
-						return
-					}
-
-					var intf Interface
-					if err := (&intf).parseAttributes(attrs); err != nil {
-						result <- errors.Join(ErrScanValidation, err)
-						return
-					}
-
-					if ifi.Index != intf.Index {
-						continue
-					}
-
-					return
-				}
-			}
-		}
-	}(ctx, conn, result)
+	}(ctx, conn, ifi.Index, c.familyVersion, result)
 
 	flags := netlink.Request | netlink.Acknowledge
 
 	_, err = conn.Send(req, family.ID, flags)
 	if err != nil {
+
+		cancel()
+		err2 := <-result
+		if err2 != nil && !errors.Is(err2, context.DeadlineExceeded) {
+			err = errors.Join(err, err2)
+		}
+
 		return err
 	}
 
-	return <-result
+	err = <-result
+	cancel()
+
+	return err
 }
 
 // SetDeadline sets the read and write deadlines associated with the connection.
@@ -462,6 +421,64 @@ func (c *client) execute(
 		c.familyID,
 		netlink.Request|flags,
 	)
+}
+
+// listenNewScanResults listens for new scan results or scan abort messages
+// from the netlink connection. It processes the messages associated with the
+// specified interface index and family version, verifying attributes and
+// handling context cancellations.
+//
+// The caller should not receive on the given connection and is responsible
+// for closing it.
+func listenNewScanResults(ctx context.Context, conn *genetlink.Conn, ifiIndex int, familyVersion uint8) error {
+	for ctx.Err() == nil {
+		msgs, _, err := conn.Receive()
+		if err != nil {
+			return err
+		}
+
+		// test for context cancellation and abandon work if so
+		if ctx.Err() != nil {
+			return err
+		}
+
+		for _, msg := range msgs {
+			if msg.Header.Version != familyVersion {
+				break
+			}
+
+			cmd := msg.Header.Command
+			if cmd == unix.NL80211_CMD_TRIGGER_SCAN {
+				continue
+			}
+
+			if cmd == unix.NL80211_CMD_SCAN_ABORTED {
+				return ErrScanAborted
+			}
+
+			if cmd == unix.NL80211_CMD_NEW_SCAN_RESULTS {
+
+				// attempt to verify the interface
+				attrs, err := netlink.UnmarshalAttributes(msg.Data)
+				if err != nil {
+					return errors.Join(ErrScanValidation, err)
+				}
+
+				var intf Interface
+				if err := (&intf).parseAttributes(attrs); err != nil {
+					return errors.Join(ErrScanValidation, err)
+				}
+
+				if ifiIndex != intf.Index {
+					continue
+				}
+
+				return nil
+			}
+		}
+	}
+
+	return ctx.Err()
 }
 
 // parseGetScanResult parses all the BSS from nl80211 CMD_GET_SCAN response messages.
