@@ -189,11 +189,12 @@ type BSSLoad struct {
 
 // String returns the string representation of a BSSLoad.
 func (l BSSLoad) String() string {
-	if l.Version == 1 {
+	switch l.Version {
+	case 1:
 		return fmt.Sprintf("BSSLoad Version: %d    stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d\n",
 			l.Version, l.StationCount, l.ChannelUtilization, l.AvailableAdmissionCapacity,
 		)
-	} else if l.Version == 2 {
+	case 2:
 		return fmt.Sprintf("BSSLoad Version: %d    stationCount: %d    channelUtilization: %d/255     availableAdmissionCapacity: %d [*32us/s]\n",
 			l.Version, l.StationCount, l.ChannelUtilization, l.AvailableAdmissionCapacity,
 		)
@@ -276,10 +277,8 @@ type ie struct {
 func parseIEs(b []byte) ([]ie, error) {
 	var ies []ie
 	var i int
-	for {
-		if len(b[i:]) == 0 {
-			break
-		}
+	for len(b[i:]) != 0 {
+
 		if len(b[i:]) < 2 {
 			return nil, errInvalidIE
 		}
