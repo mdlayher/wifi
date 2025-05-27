@@ -672,6 +672,8 @@ func parseStationInfo(b []byte) (*StationInfo, error) {
 	var info StationInfo
 	for _, a := range attrs {
 		switch a.Type {
+		case unix.NL80211_ATTR_IFINDEX:
+			info.InterfaceIndex = int(nlenc.Uint32(a.Data))
 		case unix.NL80211_ATTR_MAC:
 			info.HardwareAddr = net.HardwareAddr(a.Data)
 		case unix.NL80211_ATTR_STA_INFO:
@@ -801,6 +803,8 @@ func parseSurveyInfo(b []byte) (*SurveyInfo, error) {
 	var info SurveyInfo
 	for _, a := range attrs {
 		switch a.Type {
+		case unix.NL80211_ATTR_IFINDEX:
+			info.InterfaceIndex = int(nlenc.Uint32(a.Data))
 		case unix.NL80211_ATTR_SURVEY_INFO:
 			nattrs, err := netlink.UnmarshalAttributes(a.Data)
 			if err != nil {
