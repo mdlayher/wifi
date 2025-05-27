@@ -102,6 +102,44 @@ func (t InterfaceType) String() string {
 	}
 }
 
+// A ChannelWidth is the width of a WiFi channel.
+type ChannelWidth int
+
+const (
+	ChannelWidth20NoHT ChannelWidth = iota
+	ChannelWidth20
+	ChannelWidth40
+	ChannelWidth80
+	ChannelWidth80P80
+	ChannelWidth160
+	ChannelWidth5
+	ChannelWidth10
+)
+
+// String returns the string representation of an InterfaceType.
+func (t ChannelWidth) String() string {
+	switch t {
+	case ChannelWidth20NoHT:
+		return "20 MHz (no HT)"
+	case ChannelWidth20:
+		return "20 MHz"
+	case ChannelWidth40:
+		return "40 MHz"
+	case ChannelWidth80:
+		return "80 MHz"
+	case ChannelWidth80P80:
+		return "80+80 MHz"
+	case ChannelWidth160:
+		return "160 MHz"
+	case ChannelWidth5:
+		return "5 MHz"
+	case ChannelWidth10:
+		return "10 MHz"
+	default:
+		return fmt.Sprintf("unknown(%d)", t)
+	}
+}
+
 // An Interface is a WiFi network interface.
 type Interface struct {
 	// The index of the interface.
@@ -124,6 +162,9 @@ type Interface struct {
 
 	// The interface's wireless frequency in MHz.
 	Frequency int
+
+	// The interface's wireless channel width.
+	ChannelWidth ChannelWidth
 }
 
 // StationInfo contains statistics about a WiFi interface operating in
