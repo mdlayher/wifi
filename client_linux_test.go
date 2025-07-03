@@ -744,3 +744,316 @@ func TestLinux_clientSurveyInfoOK(t *testing.T) {
 		}
 	}
 }
+
+// Test data helpers for decodeRSN tests
+func buildRSNIE(parts ...[]byte) []byte {
+	var result []byte
+	for _, part := range parts {
+		result = append(result, part...)
+	}
+	return result
+}
+
+var (
+	rsnVersion1      = []byte{0x01, 0x00}
+	rsnVersion2      = []byte{0x02, 0x00}
+	ccmp128Cipher    = []byte{0x00, 0x0F, 0xAC, 0x04}
+	tkipCipher       = []byte{0x00, 0x0F, 0xAC, 0x02}
+	bipCmac128Cipher = []byte{0x00, 0x0F, 0xAC, 0x06}
+	pskAKM           = []byte{0x00, 0x0F, 0xAC, 0x02}
+	saeAKM           = []byte{0x00, 0x0F, 0xAC, 0x08}
+	dot1xAKM         = []byte{0x00, 0x0F, 0xAC, 0x01}
+	oneCipherCount   = []byte{0x01, 0x00}
+	twoCipherCount   = []byte{0x02, 0x00}
+	zeroCount        = []byte{0x00, 0x00}
+	pmfCapable       = []byte{0x80, 0x00}
+	pmfRequired      = []byte{0xC0, 0x00}
+	pmkid16Bytes     = []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10}
+)
+
+// Test valid RSN cases
+func Test_decodeRSN_ValidCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected *RSNInfo
+	}{
+		{
+			name:  "minimal valid RSN",
+			input: buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher),
+			expected: &RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherCCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherCCMP128},
+				AKMs:            []RSNAKM{},
+			},
+		},
+		{
+			name:  "complete RSN with AKMs and capabilities",
+			input: buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, oneCipherCount, pskAKM, pmfCapable),
+			expected: &RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherCCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherCCMP128},
+				AKMs:            []RSNAKM{RSN_AKM_PSK},
+				Capabilities:    0x0080,
+			},
+		},
+		{
+			name:  "multiple pairwise ciphers and AKMs",
+			input: buildRSNIE(rsnVersion1, tkipCipher, twoCipherCount, tkipCipher, ccmp128Cipher, twoCipherCount, dot1xAKM, pskAKM),
+			expected: &RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherTKIP,
+				PairwiseCiphers: []RSNCipher{RSNCipherTKIP, RSNCipherCCMP128},
+				AKMs:            []RSNAKM{RSN_AKM_8021X, RSN_AKM_PSK},
+			},
+		},
+		{
+			name:  "with group management cipher (WPA3/802.11w)",
+			input: buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, oneCipherCount, saeAKM, pmfRequired, zeroCount, bipCmac128Cipher),
+			expected: &RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherCCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherCCMP128},
+				AKMs:            []RSNAKM{RSN_AKM_SAE},
+				Capabilities:    0x00C0,
+				GroupMgmtCipher: RSNCipherBIPCMAC128,
+			},
+		},
+		{
+			name:  "with PMKID list",
+			input: buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, oneCipherCount, pskAKM, zeroCount, oneCipherCount, pmkid16Bytes),
+			expected: &RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherCCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherCCMP128},
+				AKMs:            []RSNAKM{RSN_AKM_PSK},
+			},
+		},
+		{
+			name:  "version 2 (should be accepted)",
+			input: buildRSNIE(rsnVersion2, ccmp128Cipher, oneCipherCount, ccmp128Cipher),
+			expected: &RSNInfo{
+				Version:         2,
+				GroupCipher:     RSNCipherCCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherCCMP128},
+				AKMs:            []RSNAKM{},
+			},
+		},
+		{
+			name:  "unknown cipher and AKM values",
+			input: buildRSNIE(rsnVersion1, []byte{0xFF, 0xFF, 0xFF, 0xFF}, oneCipherCount, []byte{0xAA, 0xBB, 0xCC, 0xDD}, oneCipherCount, []byte{0x11, 0x22, 0x33, 0x44}),
+			expected: &RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipher(0xFFFFFFFF),
+				PairwiseCiphers: []RSNCipher{RSNCipher(0xAABBCCDD)},
+				AKMs:            []RSNAKM{RSNAKM(0x11223344)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertValidRSN(t, tt.input, tt.expected)
+		})
+	}
+}
+
+// Test RSN error cases
+func Test_decodeRSN_ErrorCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected *RSNInfo
+		errMsg   string
+	}{
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: &RSNInfo{},
+			errMsg:   "RSN IE too short",
+		},
+		{
+			name:     "too short - less than minimum 8 bytes",
+			input:    []byte{0x01, 0x00, 0x00, 0x0F, 0xAC, 0x04, 0x01},
+			expected: &RSNInfo{},
+			errMsg:   "RSN IE too short",
+		},
+		{
+			name:     "version 0 (invalid)",
+			input:    []byte{0x00, 0x00, 0x00, 0x0F, 0xAC, 0x04, 0x01, 0x00},
+			expected: &RSNInfo{Version: 0},
+			errMsg:   "invalid RSN version 0",
+		},
+		{
+			name:     "truncated before pairwise count",
+			input:    buildRSNIE(rsnVersion1, ccmp128Cipher),
+			expected: &RSNInfo{},
+			errMsg:   "RSN IE too short",
+		},
+		{
+			name:     "IE data exceeds maximum size",
+			input:    make([]byte, 254),
+			expected: &RSNInfo{},
+			errMsg:   "RSN IE data exceeds maximum size of 253 octets",
+		},
+	}
+
+	// Initialize the oversized test case
+	tests[4].input[0] = 0x01 // version
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertRSNError(t, tt.input, tt.expected, tt.errMsg)
+		})
+	}
+}
+
+// Test RSN truncation errors (streamlined)
+func Test_decodeRSN_TruncationErrors(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []byte
+		expected *RSNInfo
+		errMsg   string
+	}{
+		{
+			name:     "truncated in pairwise list",
+			input:    buildRSNIE(rsnVersion1, ccmp128Cipher, twoCipherCount, ccmp128Cipher),
+			expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128},
+			errMsg:   "RSN IE truncated in pairwise list",
+		},
+		{
+			name:     "truncated in AKM list",
+			input:    buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, twoCipherCount, dot1xAKM),
+			expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128, PairwiseCiphers: []RSNCipher{RSNCipherCCMP128}},
+			errMsg:   "RSN IE truncated in AKM list",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertRSNError(t, tt.input, tt.expected, tt.errMsg)
+		})
+	}
+}
+
+// Test RSN count validation and edge cases
+func Test_decodeRSN_CountValidation(t *testing.T) {
+	t.Run("count errors", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			input    []byte
+			expected *RSNInfo
+			errMsg   string
+		}{
+			{
+				name:     "pairwise cipher count too large",
+				input:    buildRSNIE(rsnVersion1, ccmp128Cipher, []byte{0xFF, 0x00}),
+				expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128},
+				errMsg:   "pairwise cipher count too large",
+			},
+			{
+				name:     "AKM count too large",
+				input:    buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, []byte{0xFF, 0x00}),
+				expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128, PairwiseCiphers: []RSNCipher{RSNCipherCCMP128}},
+				errMsg:   "AKM count too large",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				assertRSNError(t, tt.input, tt.expected, tt.errMsg)
+			})
+		}
+	})
+
+	t.Run("zero counts (valid)", func(t *testing.T) {
+		tests := []struct {
+			name  string
+			input []byte
+		}{
+			{"zero pairwise cipher count", buildRSNIE(rsnVersion1, ccmp128Cipher, zeroCount)},
+			{"zero AKM count", buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, zeroCount)},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := decodeRSN(tt.input)
+				if err != nil {
+					t.Errorf("decodeRSN() failed: %v", err)
+				}
+				if got.Version != 1 {
+					t.Errorf("decodeRSN() version = %v, want 1", got.Version)
+				}
+			})
+		}
+	})
+}
+
+// compareRSNCipherSlices compares two RSNCipher slices, treating nil and empty slices as equal
+func compareRSNCipherSlices(a, b []RSNCipher) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+// compareRSNAKMSlices compares two RSNAKM slices, treating nil and empty slices as equal
+func compareRSNAKMSlices(a, b []RSNAKM) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+// Helper assertion functions for RSN tests
+func assertValidRSN(t *testing.T, input []byte, expected *RSNInfo) {
+	t.Helper()
+	got, err := decodeRSN(input)
+	if err != nil {
+		t.Errorf("decodeRSN() unexpected error = %v", err)
+		return
+	}
+
+	// Compare individual fields
+	if got.Version != expected.Version {
+		t.Errorf("decodeRSN() version = %v, want %v", got.Version, expected.Version)
+	}
+	if got.GroupCipher != expected.GroupCipher {
+		t.Errorf("decodeRSN() group cipher = %v, want %v", got.GroupCipher, expected.GroupCipher)
+	}
+	if !compareRSNCipherSlices(got.PairwiseCiphers, expected.PairwiseCiphers) {
+		t.Errorf("decodeRSN() pairwise ciphers = %v, want %v", got.PairwiseCiphers, expected.PairwiseCiphers)
+	}
+	if !compareRSNAKMSlices(got.AKMs, expected.AKMs) {
+		t.Errorf("decodeRSN() AKMs = %v, want %v", got.AKMs, expected.AKMs)
+	}
+	if got.Capabilities != expected.Capabilities {
+		t.Errorf("decodeRSN() capabilities = %v, want %v", got.Capabilities, expected.Capabilities)
+	}
+	if got.GroupMgmtCipher != expected.GroupMgmtCipher {
+		t.Errorf("decodeRSN() group mgmt cipher = %v, want %v", got.GroupMgmtCipher, expected.GroupMgmtCipher)
+	}
+}
+
+func assertRSNError(t *testing.T, input []byte, expected *RSNInfo, errMsg string) {
+	t.Helper()
+	got, err := decodeRSN(input)
+	if err == nil {
+		t.Errorf("decodeRSN() expected error but got none")
+		return
+	}
+	if errMsg != "" && err.Error() != errMsg {
+		t.Errorf("decodeRSN() error = %v, want %v", err.Error(), errMsg)
+	}
+
+	// For error cases, check partial parsing results
+	if got.Version != expected.Version {
+		t.Errorf("decodeRSN() version = %v, want %v", got.Version, expected.Version)
+	}
+	if got.GroupCipher != expected.GroupCipher {
+		t.Errorf("decodeRSN() group cipher = %v, want %v", got.GroupCipher, expected.GroupCipher)
+	}
+}

@@ -227,6 +227,8 @@ type BSS struct {
 
 	// Load: The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
 	Load BSSLoad
+
+	RSN RSNInfo
 }
 
 // A BSSStatus indicates the current status of client within a BSS.
@@ -266,6 +268,7 @@ func (s BSSStatus) String() string {
 const (
 	ieSSID    = 0
 	ieBSSLoad = 11
+	ieRSN     = 48 // Robust Security Network
 )
 
 // An ie is an 802.11 information element.
@@ -341,4 +344,179 @@ type SurveyInfo struct {
 
 	// Indicates if the channel is currently in use.
 	InUse bool
+}
+
+// RSNCipher represents a cipher suite in RSN IE.
+// Values correspond to OUIs (00-0F-AC-XX) in the wire format as defined in
+// IEEE 802.11-2020 standard, section 9.4.2.24.2 (Cipher Suites).
+type RSNCipher uint32
+
+const (
+	RSNCipherUseGroup        RSNCipher = 0x000FAC00 // Use group cipher suite
+	RSNCipherWEP40           RSNCipher = 0x000FAC01 // WEP-40 (insecure, legacy)
+	RSNCipherTKIP            RSNCipher = 0x000FAC02 // TKIP (insecure, deprecated)
+	RSNCipherReserved3       RSNCipher = 0x000FAC03 // Reserved
+	RSNCipherCCMP128         RSNCipher = 0x000FAC04 // CCMP-128 (AES) - WPA2
+	RSNCipherWEP104          RSNCipher = 0x000FAC05 // WEP-104 (insecure, legacy)
+	RSNCipherBIPCMAC128      RSNCipher = 0x000FAC06 // BIP-CMAC-128 (802.11w MFP/PMF)
+	RSNCipherGroupNotAllowed RSNCipher = 0x000FAC07 // Group addressed traffic not allowed
+	RSNCipherGCMP128         RSNCipher = 0x000FAC08 // GCMP-128 (AES-GCMP) - WPA3
+	RSNCipherGCMP256         RSNCipher = 0x000FAC09 // GCMP-256 (AES-GCMP) - WPA3-Enterprise
+	RSNCipherCCMP256         RSNCipher = 0x000FAC0A // CCMP-256 (AES, 256-bit key)
+	RSNCipherBIPGMAC128      RSNCipher = 0x000FAC0B // BIP-GMAC-128
+	RSNCipherBIPGMAC256      RSNCipher = 0x000FAC0C // BIP-GMAC-256
+	RSNCipherBIPCMAC256      RSNCipher = 0x000FAC0D // BIP-CMAC-256
+)
+
+// String returns the human-readable name of the RSN cipher.
+func (c RSNCipher) String() string {
+	switch c {
+	case RSNCipherUseGroup:
+		return "Use‑group"
+	case RSNCipherWEP40:
+		return "WEP‑40"
+	case RSNCipherTKIP:
+		return "TKIP"
+	case RSNCipherReserved3:
+		return "Reserved‑3"
+	case RSNCipherCCMP128:
+		return "CCMP‑128"
+	case RSNCipherWEP104:
+		return "WEP‑104"
+	case RSNCipherBIPCMAC128:
+		return "BIP‑CMAC‑128"
+	case RSNCipherGroupNotAllowed:
+		return "Group‑not‑allowed"
+	case RSNCipherGCMP128:
+		return "GCMP‑128"
+	case RSNCipherGCMP256:
+		return "GCMP‑256"
+	case RSNCipherCCMP256:
+		return "CCMP‑256"
+	case RSNCipherBIPGMAC128:
+		return "BIP‑GMAC‑128"
+	case RSNCipherBIPGMAC256:
+		return "BIP‑GMAC‑256"
+	case RSNCipherBIPCMAC256:
+		return "BIP‑CMAC‑256"
+	default:
+		return fmt.Sprintf("Unknown-0x%08X", uint32(c))
+	}
+}
+
+// RSNAKM represents an Authentication and Key Management suite in RSN IE.
+// Values correspond to OUIs (00-0F-AC-XX) in the wire format as defined in
+// IEEE 802.11-2020 standard, section 9.4.2.24.3 (AKM Suites).
+type RSNAKM uint32
+
+// RSN AKM suite constants (Wi-Fi Alliance OUI: 00-0F-AC)
+const (
+	RSN_AKM_RESERVED_0      RSNAKM = 0x000FAC00 // Reserved
+	RSN_AKM_8021X           RSNAKM = 0x000FAC01 // 802.1X (WPA-Enterprise)
+	RSN_AKM_PSK             RSNAKM = 0x000FAC02 // PSK (WPA2-Personal)
+	RSN_AKM_FT_8021X        RSNAKM = 0x000FAC03 // FT-802.1X (Fast BSS transition with EAP)
+	RSN_AKM_FT_PSK          RSNAKM = 0x000FAC04 // FT-PSK (Fast BSS transition with PSK)
+	RSN_AKM_8021X_SHA256    RSNAKM = 0x000FAC05 // 802.1X-SHA256 (WPA2 with SHA256 auth)
+	RSN_AKM_PSK_SHA256      RSNAKM = 0x000FAC06 // PSK-SHA256 (WPA2-PSK with SHA256)
+	RSN_AKM_TDLS            RSNAKM = 0x000FAC07 // TDLS TPK handshake
+	RSN_AKM_SAE             RSNAKM = 0x000FAC08 // SAE (WPA3-Personal)
+	RSN_AKM_FT_SAE          RSNAKM = 0x000FAC09 // FT-SAE (WPA3-Personal with Fast Roaming)
+	RSN_AKM_AP_PEERKEY      RSNAKM = 0x000FAC0A // APPeerKey Authentication with SHA-256
+	RSN_AKM_8021X_SUITE_B   RSNAKM = 0x000FAC0B // 802.1X using Suite B compliant EAP (SHA-256)
+	RSN_AKM_8021X_CNSA      RSNAKM = 0x000FAC0C // 802.1X using CNSA Suite compliant EAP (SHA-384)
+	RSN_AKM_FT_8021X_SHA384 RSNAKM = 0x000FAC0D // FT-802.1X using SHA-384
+	RSN_AKM_FILS_SHA256     RSNAKM = 0x000FAC0E // FILS key management using SHA-256
+	RSN_AKM_FILS_SHA384     RSNAKM = 0x000FAC0F // FILS key management using SHA-384
+	RSN_AKM_FT_FILS_SHA256  RSNAKM = 0x000FAC10 // FT authentication over FILS with SHA-256
+	RSN_AKM_FT_FILS_SHA384  RSNAKM = 0x000FAC11 // FT authentication over FILS with SHA-384
+	RSN_AKM_RESERVED_18     RSNAKM = 0x000FAC12 // Reserved
+	RSN_AKM_FT_PSK_SHA384   RSNAKM = 0x000FAC13 // FT-PSK using SHA-384
+	RSN_AKM_PSK_SHA384      RSNAKM = 0x000FAC14 // PSK using SHA-384
+)
+
+// String returns the human-readable name of the RSN AKM.
+func (a RSNAKM) String() string {
+	switch a {
+	case RSN_AKM_RESERVED_0:
+		return "Reserved‑0"
+	case RSN_AKM_8021X:
+		return "802.1X"
+	case RSN_AKM_PSK:
+		return "PSK"
+	case RSN_AKM_FT_8021X:
+		return "FT‑802.1X"
+	case RSN_AKM_FT_PSK:
+		return "FT‑PSK"
+	case RSN_AKM_8021X_SHA256:
+		return "802.1X‑SHA256"
+	case RSN_AKM_PSK_SHA256:
+		return "PSK‑SHA256"
+	case RSN_AKM_TDLS:
+		return "TDLS"
+	case RSN_AKM_SAE:
+		return "SAE"
+	case RSN_AKM_FT_SAE:
+		return "FT‑SAE"
+	case RSN_AKM_AP_PEERKEY:
+		return "AP‑PeerKey"
+	case RSN_AKM_8021X_SUITE_B:
+		return "802.1X‑Suite‑B"
+	case RSN_AKM_8021X_CNSA:
+		return "802.1X‑CNSA"
+	case RSN_AKM_FT_8021X_SHA384:
+		return "FT‑802.1X‑SHA384"
+	case RSN_AKM_FILS_SHA256:
+		return "FILS‑SHA256"
+	case RSN_AKM_FILS_SHA384:
+		return "FILS‑SHA384"
+	case RSN_AKM_FT_FILS_SHA256:
+		return "FT‑FILS‑SHA256"
+	case RSN_AKM_FT_FILS_SHA384:
+		return "FT‑FILS‑SHA384"
+	case RSN_AKM_RESERVED_18:
+		return "Reserved‑18"
+	case RSN_AKM_FT_PSK_SHA384:
+		return "FT‑PSK‑SHA384"
+	case RSN_AKM_PSK_SHA384:
+		return "PSK‑SHA384"
+	default:
+		return fmt.Sprintf("Unknown-0x%08X", uint32(a))
+	}
+}
+
+// Robust Security Network Information Element
+// The RSN IE structure is defined in IEEE 802.11-2020 standard, section 9.4.2.24 (page 1051) .
+type RSNInfo struct {
+	Version         uint16
+	GroupCipher     RSNCipher   // Group cipher suite
+	PairwiseCiphers []RSNCipher // Pairwise cipher suites
+	AKMs            []RSNAKM    // Authentication and Key Management suites
+	Capabilities    uint16      // RSN capability flags
+	GroupMgmtCipher RSNCipher   // Group management cipher (present only with WPA3/802.11w)
+}
+
+func (r RSNInfo) IsInitialized() bool {
+	return r.Version != 0
+}
+
+func (r RSNInfo) String() string {
+	if !r.IsInitialized() {
+		return ""
+	}
+
+	// Convert pairwise ciphers to strings
+	pairwiseNames := make([]string, len(r.PairwiseCiphers))
+	for i, cipher := range r.PairwiseCiphers {
+		pairwiseNames[i] = cipher.String()
+	}
+
+	// Convert AKMs to strings
+	akmNames := make([]string, len(r.AKMs))
+	for i, akm := range r.AKMs {
+		akmNames[i] = akm.String()
+	}
+
+	return fmt.Sprintf(
+		"RSN v%d  Group:%s  Pairwise:%v  AKM:%v",
+		r.Version, r.GroupCipher.String(), pairwiseNames, akmNames)
 }
