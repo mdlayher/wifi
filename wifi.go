@@ -247,6 +247,7 @@ type BSS struct {
 	// Load: The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
 	Load BSSLoad
 
+	// RSN Robust Security Network Information Element (IEEE 802.11 Element ID 48)
 	RSN RSNInfo
 }
 
