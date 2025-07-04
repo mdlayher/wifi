@@ -653,6 +653,12 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 						continue // This IE is malformed
 					}
 					b.Load = *Bssload
+				case ieRSN:
+					rsnInfo, err := decodeRSN(ie.Data)
+					if err != nil {
+						continue // This IE is malformed
+					}
+					b.RSN = *rsnInfo
 				}
 			}
 		}
@@ -899,6 +905,116 @@ func decodeBSSLoad(b []byte) (*BSSLoad, error) {
 		return nil, errInvalidBSSLoad
 	}
 	return &load, nil
+}
+
+// decodeRSN parses IEEE 802.11 Element ID 48 (RSN Information Element).
+// (RSN = Robust Security Network)
+//
+// The RSN IE structure is defined in IEEE 802.11-2020 standard, section 9.4.2.24 (page 1051).
+func decodeRSN(b []byte) (*RSNInfo, error) {
+	// IEEE 802.11 Information Elements are limited to 255 octets total (ID + Length + Data)
+	// Since we receive only the data portion, maximum size is 253 bytes (255 - 1 - 1)
+	if len(b) > 253 {
+		return &RSNInfo{}, errRSNDataTooLarge
+	}
+
+	if len(b) < 8 { // minimum: version(2) + group cipher(4) + pairwise count(2)
+		return &RSNInfo{}, errRSNTooShort
+	}
+
+	var ri RSNInfo
+	ri.Version = binary.LittleEndian.Uint16(b[:2])
+
+	// Note: Most implementations use version 1, but be tolerant of future versions
+	// that maintain backward compatibility. Only reject version 0 as invalid.
+	if ri.Version == 0 {
+		return &ri, errRSNInvalidVersion
+	}
+
+	// Group cipher suite (4 octets) - OUI is stored big-endian in the data
+	groupCipherOUI := binary.BigEndian.Uint32(b[2:6])
+	ri.GroupCipher = RSNCipher(groupCipherOUI)
+	pos := 6
+
+	// Pairwise cipher list
+	if len(b) < pos+2 {
+		return &ri, errRSNTruncatedPairwiseCount
+	}
+	pcCount := int(binary.LittleEndian.Uint16(b[pos : pos+2]))
+	pos += 2
+
+	if pcCount > 60 { // (253-10)/4 ≈ 60 (theoretical max with minimal overhead)
+		return &ri, errRSNPairwiseCipherCountTooLarge
+	}
+
+	if len(b) < pos+4*pcCount {
+		return &ri, errRSNTruncatedPairwiseList
+	}
+
+	ri.PairwiseCiphers = make([]RSNCipher, 0, pcCount) // Pre-allocate with known capacity
+	for i := 0; i < pcCount; i++ {
+		sel := binary.BigEndian.Uint32(b[pos : pos+4])
+		ri.PairwiseCiphers = append(ri.PairwiseCiphers, RSNCipher(sel))
+		pos += 4
+	}
+
+	// AKM list
+	if len(b) < pos+2 {
+		return &ri, nil // AKM list is optional, return what we have
+	}
+	akmCount := int(binary.LittleEndian.Uint16(b[pos : pos+2]))
+	pos += 2
+
+	if akmCount > 60 { // (253-10)/4 ≈ 60 (theoretical max with minimal overhead)
+		return &ri, errRSNAKMCountTooLarge
+	}
+
+	if len(b) < pos+4*akmCount {
+		return &ri, errRSNTruncatedAKMList
+	}
+	// Additional validation: check if we have enough space for the current counts
+	// Calculate minimum required space for what we've parsed so far
+	minRequired := 6 + 2 + 4*pcCount + 2 + 4*akmCount // version + group + pairwise_count + pairwise + akm_count + akms
+	if len(b) < minRequired {
+		return &ri, errRSNTooSmallForCounts
+	}
+
+	ri.AKMs = make([]RSNAKM, 0, akmCount) // Pre-allocate with known capacity
+	for i := 0; i < akmCount; i++ {
+		sel := binary.BigEndian.Uint32(b[pos : pos+4])
+		ri.AKMs = append(ri.AKMs, RSNAKM(sel))
+		pos += 4
+	}
+
+	// Capabilities (optional)
+	if len(b) >= pos+2 {
+		ri.Capabilities = binary.LittleEndian.Uint16(b[pos : pos+2])
+		pos += 2
+	}
+
+	// PMKID list – skip if present, with proper bounds checking
+	if len(b) >= pos+2 {
+		pmkCount := int(binary.LittleEndian.Uint16(b[pos : pos+2]))
+		pos += 2
+
+		if pmkCount > 15 { // (253-10)/16 ≈ 15 (theoretical max with minimal overhead)
+			return &ri, errRSNPMKIDCountTooLarge
+		}
+
+		// Check if we have enough bytes for all PMKIDs
+		if len(b) < pos+16*pmkCount {
+			return &ri, errRSNTruncatedPMKIDList
+		}
+		pos += 16 * pmkCount
+	}
+
+	// Group‑management cipher (optional, WPA3/802.11w)
+	if len(b) >= pos+4 {
+		gmCipherOUI := binary.BigEndian.Uint32(b[pos : pos+4])
+		ri.GroupMgmtCipher = RSNCipher(gmCipherOUI)
+	}
+
+	return &ri, nil
 }
 
 // checkExtFeature Checks if a physical interface supports a extended feature
