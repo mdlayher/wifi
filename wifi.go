@@ -13,6 +13,25 @@ var errInvalidIE = errors.New("invalid 802.11 information element")
 // errInvalidBSSLoad is returned when BSSLoad IE has wrong length.
 var errInvalidBSSLoad = errors.New("802.11 information element BSSLoad has wrong length")
 
+// RSN (Robust Security Network) Information Element parsing errors
+var (
+	// Base error for all RSN parsing errors
+	errRSNParse = errors.New("RSN IE parsing error")
+
+	// Specific RSN parsing errors that wrap the base error
+	errRSNDataTooLarge                = fmt.Errorf("%w: data exceeds maximum size of 253 octets", errRSNParse)
+	errRSNTooShort                    = fmt.Errorf("%w: IE too short", errRSNParse)
+	errRSNInvalidVersion              = fmt.Errorf("%w: invalid version 0", errRSNParse)
+	errRSNTruncatedPairwiseCount      = fmt.Errorf("%w: truncated before pairwise count", errRSNParse)
+	errRSNPairwiseCipherCountTooLarge = fmt.Errorf("%w: pairwise cipher count too large", errRSNParse)
+	errRSNTruncatedPairwiseList       = fmt.Errorf("%w: truncated in pairwise list", errRSNParse)
+	errRSNAKMCountTooLarge            = fmt.Errorf("%w: AKM count too large", errRSNParse)
+	errRSNTruncatedAKMList            = fmt.Errorf("%w: truncated in AKM list", errRSNParse)
+	errRSNTooSmallForCounts           = fmt.Errorf("%w: too small for declared cipher/AKM counts", errRSNParse)
+	errRSNPMKIDCountTooLarge          = fmt.Errorf("%w: PMKID count too large", errRSNParse)
+	errRSNTruncatedPMKIDList          = fmt.Errorf("%w: truncated in PMKID list", errRSNParse)
+)
+
 // An InterfaceType is the operating mode of an Interface.
 type InterfaceType int
 

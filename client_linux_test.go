@@ -872,31 +872,31 @@ func Test_decodeRSN_ErrorCases(t *testing.T) {
 			name:     "empty input",
 			input:    []byte{},
 			expected: &RSNInfo{},
-			errMsg:   "RSN IE too short",
+			errMsg:   "RSN IE parsing error: IE too short",
 		},
 		{
 			name:     "too short - less than minimum 8 bytes",
 			input:    []byte{0x01, 0x00, 0x00, 0x0F, 0xAC, 0x04, 0x01},
 			expected: &RSNInfo{},
-			errMsg:   "RSN IE too short",
+			errMsg:   "RSN IE parsing error: IE too short",
 		},
 		{
 			name:     "version 0 (invalid)",
 			input:    []byte{0x00, 0x00, 0x00, 0x0F, 0xAC, 0x04, 0x01, 0x00},
 			expected: &RSNInfo{Version: 0},
-			errMsg:   "invalid RSN version 0",
+			errMsg:   "RSN IE parsing error: invalid version 0",
 		},
 		{
 			name:     "truncated before pairwise count",
 			input:    buildRSNIE(rsnVersion1, ccmp128Cipher),
 			expected: &RSNInfo{},
-			errMsg:   "RSN IE too short",
+			errMsg:   "RSN IE parsing error: IE too short",
 		},
 		{
 			name:     "IE data exceeds maximum size",
 			input:    make([]byte, 254),
 			expected: &RSNInfo{},
-			errMsg:   "RSN IE data exceeds maximum size of 253 octets",
+			errMsg:   "RSN IE parsing error: data exceeds maximum size of 253 octets",
 		},
 	}
 
@@ -922,13 +922,13 @@ func Test_decodeRSN_TruncationErrors(t *testing.T) {
 			name:     "truncated in pairwise list",
 			input:    buildRSNIE(rsnVersion1, ccmp128Cipher, twoCipherCount, ccmp128Cipher),
 			expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128},
-			errMsg:   "RSN IE truncated in pairwise list",
+			errMsg:   "RSN IE parsing error: truncated in pairwise list",
 		},
 		{
 			name:     "truncated in AKM list",
 			input:    buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, twoCipherCount, dot1xAKM),
 			expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128, PairwiseCiphers: []RSNCipher{RSNCipherCCMP128}},
-			errMsg:   "RSN IE truncated in AKM list",
+			errMsg:   "RSN IE parsing error: truncated in AKM list",
 		},
 	}
 
@@ -952,13 +952,13 @@ func Test_decodeRSN_CountValidation(t *testing.T) {
 				name:     "pairwise cipher count too large",
 				input:    buildRSNIE(rsnVersion1, ccmp128Cipher, []byte{0xFF, 0x00}),
 				expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128},
-				errMsg:   "pairwise cipher count too large",
+				errMsg:   "RSN IE parsing error: pairwise cipher count too large",
 			},
 			{
 				name:     "AKM count too large",
 				input:    buildRSNIE(rsnVersion1, ccmp128Cipher, oneCipherCount, ccmp128Cipher, []byte{0xFF, 0x00}),
 				expected: &RSNInfo{Version: 1, GroupCipher: RSNCipherCCMP128, PairwiseCiphers: []RSNCipher{RSNCipherCCMP128}},
-				errMsg:   "AKM count too large",
+				errMsg:   "RSN IE parsing error: AKM count too large",
 			},
 		}
 

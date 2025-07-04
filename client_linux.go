@@ -915,11 +915,11 @@ func decodeRSN(b []byte) (*RSNInfo, error) {
 	// IEEE 802.11 Information Elements are limited to 255 octets total (ID + Length + Data)
 	// Since we receive only the data portion, maximum size is 253 bytes (255 - 1 - 1)
 	if len(b) > 253 {
-		return &RSNInfo{}, errors.New("RSN IE data exceeds maximum size of 253 octets")
+		return &RSNInfo{}, errRSNDataTooLarge
 	}
 
 	if len(b) < 8 { // minimum: version(2) + group cipher(4) + pairwise count(2)
-		return &RSNInfo{}, errors.New("RSN IE too short")
+		return &RSNInfo{}, errRSNTooShort
 	}
 
 	var ri RSNInfo
@@ -928,7 +928,7 @@ func decodeRSN(b []byte) (*RSNInfo, error) {
 	// Note: Most implementations use version 1, but be tolerant of future versions
 	// that maintain backward compatibility. Only reject version 0 as invalid.
 	if ri.Version == 0 {
-		return &ri, errors.New("invalid RSN version 0")
+		return &ri, errRSNInvalidVersion
 	}
 
 	// Group cipher suite (4 octets) - OUI is stored big-endian in the data
@@ -938,17 +938,17 @@ func decodeRSN(b []byte) (*RSNInfo, error) {
 
 	// Pairwise cipher list
 	if len(b) < pos+2 {
-		return &ri, errors.New("RSN IE truncated before pairwise count")
+		return &ri, errRSNTruncatedPairwiseCount
 	}
 	pcCount := int(binary.LittleEndian.Uint16(b[pos : pos+2]))
 	pos += 2
 
 	if pcCount > 60 { // (253-10)/4 ≈ 60 (theoretical max with minimal overhead)
-		return &ri, errors.New("pairwise cipher count too large")
+		return &ri, errRSNPairwiseCipherCountTooLarge
 	}
 
 	if len(b) < pos+4*pcCount {
-		return &ri, errors.New("RSN IE truncated in pairwise list")
+		return &ri, errRSNTruncatedPairwiseList
 	}
 
 	ri.PairwiseCiphers = make([]RSNCipher, 0, pcCount) // Pre-allocate with known capacity
@@ -966,17 +966,17 @@ func decodeRSN(b []byte) (*RSNInfo, error) {
 	pos += 2
 
 	if akmCount > 60 { // (253-10)/4 ≈ 60 (theoretical max with minimal overhead)
-		return &ri, errors.New("AKM count too large")
+		return &ri, errRSNAKMCountTooLarge
 	}
 
 	if len(b) < pos+4*akmCount {
-		return &ri, errors.New("RSN IE truncated in AKM list")
+		return &ri, errRSNTruncatedAKMList
 	}
 	// Additional validation: check if we have enough space for the current counts
 	// Calculate minimum required space for what we've parsed so far
 	minRequired := 6 + 2 + 4*pcCount + 2 + 4*akmCount // version + group + pairwise_count + pairwise + akm_count + akms
 	if len(b) < minRequired {
-		return &ri, errors.New("RSN IE too small for declared cipher/AKM counts")
+		return &ri, errRSNTooSmallForCounts
 	}
 
 	ri.AKMs = make([]RSNAKM, 0, akmCount) // Pre-allocate with known capacity
@@ -998,12 +998,12 @@ func decodeRSN(b []byte) (*RSNInfo, error) {
 		pos += 2
 
 		if pmkCount > 15 { // (253-10)/16 ≈ 15 (theoretical max with minimal overhead)
-			return &ri, errors.New("PMKID count too large")
+			return &ri, errRSNPMKIDCountTooLarge
 		}
 
 		// Check if we have enough bytes for all PMKIDs
 		if len(b) < pos+16*pmkCount {
-			return &ri, errors.New("RSN IE truncated in PMKID list")
+			return &ri, errRSNTruncatedPMKIDList
 		}
 		pos += 16 * pmkCount
 	}

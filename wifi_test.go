@@ -1,7 +1,9 @@
 package wifi
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -335,4 +337,70 @@ func TestRSNInfoString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRSNErrorHierarchy(t *testing.T) {
+	// Test that specific errors wrap the base error and basic functionality
+	tests := []struct {
+		name        string
+		err         error
+		description string
+	}{
+		{"DataTooLarge", errRSNDataTooLarge, "data exceeds maximum size"},
+		{"TooShort", errRSNTooShort, "IE too short"},
+		{"InvalidVersion", errRSNInvalidVersion, "invalid version"},
+		{"TruncatedPairwiseCount", errRSNTruncatedPairwiseCount, "truncated before pairwise count"},
+		{"PairwiseCipherCountTooLarge", errRSNPairwiseCipherCountTooLarge, "pairwise cipher count too large"},
+		{"TruncatedPairwiseList", errRSNTruncatedPairwiseList, "truncated in pairwise list"},
+		{"AKMCountTooLarge", errRSNAKMCountTooLarge, "AKM count too large"},
+		{"TruncatedAKMList", errRSNTruncatedAKMList, "truncated in AKM list"},
+		{"TooSmallForCounts", errRSNTooSmallForCounts, "too small for declared cipher/AKM counts"},
+		{"PMKIDCountTooLarge", errRSNPMKIDCountTooLarge, "PMKID count too large"},
+		{"TruncatedPMKIDList", errRSNTruncatedPMKIDList, "truncated in PMKID list"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test that the specific error wraps the base error (errors.Is functionality)
+			if !errors.Is(tt.err, errRSNParse) {
+				t.Errorf("errors.Is(%v, errRSNParse) = false, want true", tt.err)
+			}
+
+			// Test that the specific error is still identifiable as itself
+			if !errors.Is(tt.err, tt.err) {
+				t.Errorf("errors.Is(%v, %v) = false, want true", tt.err, tt.err)
+			}
+
+			// Test that specific errors don't match other specific errors
+			if tt.err != errRSNDataTooLarge && errors.Is(tt.err, errRSNDataTooLarge) {
+				t.Errorf("error %v should not match errRSNDataTooLarge", tt.err)
+			}
+
+			// Test that RSN errors don't match non-RSN errors
+			if errors.Is(tt.err, errInvalidIE) {
+				t.Errorf("RSN error %v should not match errInvalidIE", tt.err)
+			}
+
+			// Test that error message is properly formatted
+			errMsg := tt.err.Error()
+			if errMsg == "" {
+				t.Errorf("error message is empty")
+			}
+
+			// Verify error message contains both base and specific parts
+			if !strings.Contains(errMsg, errRSNParse.Error()) {
+				t.Errorf("error message should contain %q, got: %q", errRSNParse.Error(), errMsg)
+			}
+			if !strings.Contains(errMsg, tt.description) {
+				t.Errorf("error message should contain %q, got: %q", tt.description, errMsg)
+			}
+		})
+	}
+
+	// Test that base error doesn't match specific errors
+	t.Run("Base error isolation", func(t *testing.T) {
+		if errors.Is(errRSNParse, errRSNDataTooLarge) {
+			t.Error("base error should not match specific errors")
+		}
+	})
 }
