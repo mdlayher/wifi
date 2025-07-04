@@ -271,6 +271,7 @@ func TestLinux_clientStationInfoNoMessagesIsNotExist(t *testing.T) {
 func TestLinux_clientStationInfoOK(t *testing.T) {
 	want := []*StationInfo{
 		{
+			InterfaceIndex:     1,
 			HardwareAddr:       net.HardwareAddr{0xb8, 0x27, 0xeb, 0xd5, 0xf3, 0xef},
 			Connected:          30 * time.Minute,
 			Inactive:           4 * time.Millisecond,
@@ -287,6 +288,7 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			TransmitBitrate:    130000000,
 		},
 		{
+			InterfaceIndex:     1,
 			HardwareAddr:       net.HardwareAddr{0x40, 0xa5, 0xef, 0xd9, 0x96, 0x6f},
 			Connected:          60 * time.Minute,
 			Inactive:           8 * time.Millisecond,
@@ -489,6 +491,10 @@ func (s *StationInfo) attributes() []netlink.Attribute {
 			Data: s.HardwareAddr,
 		},
 		{
+			Type: unix.NL80211_ATTR_IFINDEX,
+			Data: nlenc.Uint32Bytes(uint32(s.InterfaceIndex)),
+		},
+		{
 			Type: unix.NL80211_ATTR_STA_INFO,
 			Data: mustMarshalAttributes([]netlink.Attribute{
 				{Type: unix.NL80211_STA_INFO_CONNECTED_TIME, Data: nlenc.Uint32Bytes(uint32(s.Connected.Seconds()))},
@@ -541,6 +547,10 @@ func (s *SurveyInfo) attributes() []netlink.Attribute {
 		{Type: unix.NL80211_SURVEY_INFO_TIME_SCAN, Data: nlenc.Uint64Bytes(uint64(s.ChannelTimeScan / time.Millisecond))},
 	}...)
 	return []netlink.Attribute{
+		{
+			Type: unix.NL80211_ATTR_IFINDEX,
+			Data: nlenc.Uint32Bytes(uint32(s.InterfaceIndex)),
+		},
 		{
 			Type: unix.NL80211_ATTR_SURVEY_INFO,
 			Data: mustMarshalAttributes(attributes),
@@ -681,6 +691,7 @@ func TestLinux_clientSurveyInfoNoMessagesIsNotExist(t *testing.T) {
 func TestLinux_clientSurveyInfoOK(t *testing.T) {
 	want := []*SurveyInfo{
 		{
+			InterfaceIndex:     1,
 			Frequency:          2412,
 			Noise:              -95,
 			InUse:              true,
@@ -693,6 +704,7 @@ func TestLinux_clientSurveyInfoOK(t *testing.T) {
 			ChannelTimeScan:    5 * time.Millisecond,
 		},
 		{
+			InterfaceIndex:     1,
 			Frequency:          2437,
 			Noise:              -90,
 			InUse:              false,
