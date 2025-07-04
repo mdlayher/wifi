@@ -430,73 +430,73 @@ type RSNAKM uint32
 
 // RSN AKM suite constants (Wi-Fi Alliance OUI: 00-0F-AC)
 const (
-	RSNAkm_RESERVED_0      RSNAKM = 0x000FAC00 // Reserved
-	RSNAkm_8021X           RSNAKM = 0x000FAC01 // 802.1X (WPA-Enterprise)
-	RSNAkm_PSK             RSNAKM = 0x000FAC02 // PSK (WPA2-Personal)
-	RSNAkm_FT_8021X        RSNAKM = 0x000FAC03 // FT-802.1X (Fast BSS transition with EAP)
-	RSNAkm_FT_PSK          RSNAKM = 0x000FAC04 // FT-PSK (Fast BSS transition with PSK)
-	RSNAkm_8021X_SHA256    RSNAKM = 0x000FAC05 // 802.1X-SHA256 (WPA2 with SHA256 auth)
-	RSNAkm_PSK_SHA256      RSNAKM = 0x000FAC06 // PSK-SHA256 (WPA2-PSK with SHA256)
-	RSNAkm_TDLS            RSNAKM = 0x000FAC07 // TDLS TPK handshake
-	RSNAkm_SAE             RSNAKM = 0x000FAC08 // SAE (WPA3-Personal)
-	RSNAkm_FT_SAE          RSNAKM = 0x000FAC09 // FT-SAE (WPA3-Personal with Fast Roaming)
-	RSNAkm_AP_PEERKEY      RSNAKM = 0x000FAC0A // APPeerKey Authentication with SHA-256
-	RSNAkm_8021X_SUITE_B   RSNAKM = 0x000FAC0B // 802.1X using Suite B compliant EAP (SHA-256)
-	RSNAkm_8021X_CNSA      RSNAKM = 0x000FAC0C // 802.1X using CNSA Suite compliant EAP (SHA-384)
-	RSNAkm_FT_8021X_SHA384 RSNAKM = 0x000FAC0D // FT-802.1X using SHA-384
-	RSNAkm_FILS_SHA256     RSNAKM = 0x000FAC0E // FILS key management using SHA-256
-	RSNAkm_FILS_SHA384     RSNAKM = 0x000FAC0F // FILS key management using SHA-384
-	RSNAkm_FT_FILS_SHA256  RSNAKM = 0x000FAC10 // FT authentication over FILS with SHA-256
-	RSNAkm_FT_FILS_SHA384  RSNAKM = 0x000FAC11 // FT authentication over FILS with SHA-384
-	RSNAkm_RESERVED_18     RSNAKM = 0x000FAC12 // Reserved
-	RSNAkm_FT_PSK_SHA384   RSNAKM = 0x000FAC13 // FT-PSK using SHA-384
-	RSNAkm_PSK_SHA384      RSNAKM = 0x000FAC14 // PSK using SHA-384
+	RSNAkmReserved0     RSNAKM = 0x000FAC00 // Reserved
+	RSNAkm8021X         RSNAKM = 0x000FAC01 // 802.1X (WPA-Enterprise)
+	RSNAkmPSK           RSNAKM = 0x000FAC02 // PSK (WPA2-Personal)
+	RSNAkmFT8021X       RSNAKM = 0x000FAC03 // FT-802.1X (Fast BSS transition with EAP)
+	RSNAkmFTPSK         RSNAKM = 0x000FAC04 // FT-PSK (Fast BSS transition with PSK)
+	RSNAkm8021XSHA256   RSNAKM = 0x000FAC05 // 802.1X-SHA256 (WPA2 with SHA256 auth)
+	RSNAkmPSKSHA256     RSNAKM = 0x000FAC06 // PSK-SHA256 (WPA2-PSK with SHA256)
+	RSNAkmTDLS          RSNAKM = 0x000FAC07 // TDLS TPK handshake
+	RSNAkmSAE           RSNAKM = 0x000FAC08 // SAE (WPA3-Personal)
+	RSNAkmFTSAE         RSNAKM = 0x000FAC09 // FT-SAE (WPA3-Personal with Fast Roaming)
+	RSNAkmAPPeerKey     RSNAKM = 0x000FAC0A // APPeerKey Authentication with SHA-256
+	RSNAkm8021XSuiteB   RSNAKM = 0x000FAC0B // 802.1X using Suite B compliant EAP (SHA-256)
+	RSNAkm8021XCNSA     RSNAKM = 0x000FAC0C // 802.1X using CNSA Suite compliant EAP (SHA-384)
+	RSNAkmFT8021XSHA384 RSNAKM = 0x000FAC0D // FT-802.1X using SHA-384
+	RSNAkmFILSSHA256    RSNAKM = 0x000FAC0E // FILS key management using SHA-256
+	RSNAkmFILSSHA384    RSNAKM = 0x000FAC0F // FILS key management using SHA-384
+	RSNAkmFTFILSSHA256  RSNAKM = 0x000FAC10 // FT authentication over FILS with SHA-256
+	RSNAkmFTFILSSHA384  RSNAKM = 0x000FAC11 // FT authentication over FILS with SHA-384
+	RSNAkmReserved18    RSNAKM = 0x000FAC12 // Reserved
+	RSNAkmFTPSKSHA384   RSNAKM = 0x000FAC13 // FT-PSK using SHA-384
+	RSNAkmPSKSHA384     RSNAKM = 0x000FAC14 // PSK using SHA-384
 )
 
 // String returns the human-readable name of the RSN AKM.
 func (a RSNAKM) String() string {
 	switch a {
-	case RSNAkm_RESERVED_0:
+	case RSNAkmReserved0:
 		return "Reserved‑0"
-	case RSNAkm_8021X:
+	case RSNAkm8021X:
 		return "802.1X"
-	case RSNAkm_PSK:
+	case RSNAkmPSK:
 		return "PSK"
-	case RSNAkm_FT_8021X:
+	case RSNAkmFT8021X:
 		return "FT‑802.1X"
-	case RSNAkm_FT_PSK:
+	case RSNAkmFTPSK:
 		return "FT‑PSK"
-	case RSNAkm_8021X_SHA256:
+	case RSNAkm8021XSHA256:
 		return "802.1X‑SHA256"
-	case RSNAkm_PSK_SHA256:
+	case RSNAkmPSKSHA256:
 		return "PSK‑SHA256"
-	case RSNAkm_TDLS:
+	case RSNAkmTDLS:
 		return "TDLS"
-	case RSNAkm_SAE:
+	case RSNAkmSAE:
 		return "SAE"
-	case RSNAkm_FT_SAE:
+	case RSNAkmFTSAE:
 		return "FT‑SAE"
-	case RSNAkm_AP_PEERKEY:
+	case RSNAkmAPPeerKey:
 		return "AP‑PeerKey"
-	case RSNAkm_8021X_SUITE_B:
+	case RSNAkm8021XSuiteB:
 		return "802.1X‑Suite‑B"
-	case RSNAkm_8021X_CNSA:
+	case RSNAkm8021XCNSA:
 		return "802.1X‑CNSA"
-	case RSNAkm_FT_8021X_SHA384:
+	case RSNAkmFT8021XSHA384:
 		return "FT‑802.1X‑SHA384"
-	case RSNAkm_FILS_SHA256:
+	case RSNAkmFILSSHA256:
 		return "FILS‑SHA256"
-	case RSNAkm_FILS_SHA384:
+	case RSNAkmFILSSHA384:
 		return "FILS‑SHA384"
-	case RSNAkm_FT_FILS_SHA256:
+	case RSNAkmFTFILSSHA256:
 		return "FT‑FILS‑SHA256"
-	case RSNAkm_FT_FILS_SHA384:
+	case RSNAkmFTFILSSHA384:
 		return "FT‑FILS‑SHA384"
-	case RSNAkm_RESERVED_18:
+	case RSNAkmReserved18:
 		return "Reserved‑18"
-	case RSNAkm_FT_PSK_SHA384:
+	case RSNAkmFTPSKSHA384:
 		return "FT‑PSK‑SHA384"
-	case RSNAkm_PSK_SHA384:
+	case RSNAkmPSKSHA384:
 		return "PSK‑SHA384"
 	default:
 		return fmt.Sprintf("Unknown-0x%08X", uint32(a))
