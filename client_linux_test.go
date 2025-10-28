@@ -181,12 +181,14 @@ func TestLinux_clientBSSOKSkipMissingStatus(t *testing.T) {
 
 func TestLinux_clientBSSOK(t *testing.T) {
 	want := &BSS{
-		SSID:           "Hello, 世界",
-		BSSID:          net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
-		Frequency:      2492,
-		BeaconInterval: 100 * 1024 * time.Microsecond,
-		LastSeen:       10 * time.Second,
-		Status:         BSSStatusAssociated,
+		SSID:              "Hello, 世界",
+		BSSID:             net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		Frequency:         2492,
+		BeaconInterval:    100 * 1024 * time.Microsecond,
+		LastSeen:          10 * time.Second,
+		Status:            BSSStatusAssociated,
+		Signal:            -5700,
+		SignalUnspecified: 80,
 	}
 
 	ifi := &Interface{
@@ -471,6 +473,8 @@ func (b *BSS) attributes() []netlink.Attribute {
 				{Type: unix.NL80211_BSS_BEACON_INTERVAL, Data: nlenc.Uint16Bytes(uint16(b.BeaconInterval / 1024 / time.Microsecond))},
 				{Type: unix.NL80211_BSS_SEEN_MS_AGO, Data: nlenc.Uint32Bytes(uint32(b.LastSeen / time.Millisecond))},
 				{Type: unix.NL80211_BSS_STATUS, Data: nlenc.Uint32Bytes(uint32(b.Status))},
+				{Type: unix.NL80211_BSS_SIGNAL_MBM, Data: nlenc.Int32Bytes(int32(b.Signal))},
+				{Type: unix.NL80211_BSS_SIGNAL_UNSPEC, Data: nlenc.Uint32Bytes(uint32(b.SignalUnspecified))},
 				{
 					Type: unix.NL80211_BSS_INFORMATION_ELEMENTS,
 					Data: marshalIEs([]ie{{

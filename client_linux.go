@@ -636,6 +636,12 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 			// NOTE: BSSStatus copies the ordering of nl80211's BSS status
 			// constants.  This may not be the case on other operating systems.
 			b.Status = BSSStatus(nlenc.Uint32(a.Data))
+		case unix.NL80211_BSS_SIGNAL_MBM:
+			// * @NL80211_BSS_SIGNAL_MBM: signal strength in mBm (100*dBm)
+			b.Signal = int(nlenc.Int32(a.Data))
+		case unix.NL80211_BSS_SIGNAL_UNSPEC:
+			// * @NL80211_BSS_SIGNAL_UNSPEC: signal strength in unspecified units (usually percent)
+			b.SignalUnspecified = int(nlenc.Uint32(a.Data))
 		case unix.NL80211_BSS_INFORMATION_ELEMENTS:
 			ies, err := parseIEs(a.Data)
 			if err != nil {
