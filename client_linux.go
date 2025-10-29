@@ -750,8 +750,14 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 			switch a.Type {
 			case unix.NL80211_STA_INFO_RX_BITRATE:
 				info.ReceiveBitrate = rate.Bitrate
+				info.RX_MCS = rate.MCS
+				info.RX_VHT_MCS = rate.VHT_MCS
+				info.ReceiveRateInfo = *rate
 			case unix.NL80211_STA_INFO_TX_BITRATE:
 				info.TransmitBitrate = rate.Bitrate
+				info.TX_MCS = rate.MCS
+				info.TX_VHT_MCS = rate.VHT_MCS
+				info.TransmitRateInfo = *rate
 			}
 		}
 
@@ -769,25 +775,62 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 	return nil
 }
 
+// type RateModulationInfo interface {
+// 	GetMCS() int
+// 	GetNSS() int
+// 	String() string
+// }
+
+// type htRateInfo struct {
+// 	MCS int
+// }
+
+// func (r htRateInfo) GetMCS() int {
+// 	return r.MCS
+// }
+
+// func (r htRateInfo) GetNSS() int {
+// 	return (r.MCS / 8) + 1
+// }
+
+// func (r htRateInfo) String() string {
+// 	return fmt.Sprintf("HT MCS %d", r.MCS)
+// }
+
 // rateInfo provides statistics about the receive or transmit rate of
 // an interface.
-type rateInfo struct {
+type RateInfo struct {
 	// Bitrate in bits per second.
 	Bitrate int
+
+	// MCS is the modulation and coding scheme index for HT.
+	MCS int
+
+	// VHT-MCS is the modulation and coding scheme index for VHT.
+	VHT_MCS int
+
+	// VHT-NSS is the number of spatial streams for VHT.
+	VHT_NSS int
 }
 
 // parseRateInfo parses a rateInfo from netlink attributes.
-func parseRateInfo(b []byte) (*rateInfo, error) {
+func parseRateInfo(b []byte) (*RateInfo, error) {
 	attrs, err := netlink.UnmarshalAttributes(b)
 	if err != nil {
 		return nil, err
 	}
 
-	var info rateInfo
+	var info RateInfo
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_RATE_INFO_BITRATE32:
 			info.Bitrate = int(nlenc.Uint32(a.Data))
+		case unix.NL80211_RATE_INFO_MCS:
+			info.MCS = int(nlenc.Uint8(a.Data))
+		case unix.NL80211_RATE_INFO_VHT_MCS:
+			info.VHT_MCS = int(nlenc.Uint8(a.Data))
+		case unix.NL80211_RATE_INFO_VHT_NSS:
+			info.VHT_NSS = int(nlenc.Uint8(a.Data))
 		}
 
 		// Only use 16-bit counters if the 32-bit counters are not present.
