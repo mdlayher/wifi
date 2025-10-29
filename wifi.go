@@ -208,6 +208,44 @@ type Interface struct {
 	ChannelWidth ChannelWidth
 }
 
+// type RateModulationInfo interface {
+// 	GetMCS() int
+// 	GetNSS() int
+// 	String() string
+// }
+
+// type htRateInfo struct {
+// 	MCS int
+// }
+
+// func (r htRateInfo) GetMCS() int {
+// 	return r.MCS
+// }
+
+// func (r htRateInfo) GetNSS() int {
+// 	return (r.MCS / 8) + 1
+// }
+
+// func (r htRateInfo) String() string {
+// 	return fmt.Sprintf("HT MCS %d", r.MCS)
+// }
+
+// rateInfo provides statistics about the receive or transmit rate of
+// an interface.
+type RateInfo struct {
+	// Bitrate in bits per second.
+	Bitrate int
+
+	// MCS is the modulation and coding scheme index for HT.
+	MCS int
+
+	// VHT-MCS is the modulation and coding scheme index for VHT.
+	VHT_MCS int
+
+	// VHT-NSS is the number of spatial streams for VHT.
+	VHT_NSS int
+}
+
 // StationInfo contains statistics about a WiFi interface operating in
 // station mode.
 type StationInfo struct {
