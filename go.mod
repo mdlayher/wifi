@@ -1,6 +1,8 @@
 module github.com/mdlayher/wifi
 
-go 1.23.0
+go 1.24.0
+
+toolchain go1.24.5
 
 require (
 	github.com/google/go-cmp v0.7.0
