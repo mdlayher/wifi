@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package wifi
 
@@ -962,7 +961,7 @@ func decodeRSN(b []byte) (*RSNInfo, error) {
 	}
 
 	ri.PairwiseCiphers = make([]RSNCipher, 0, pcCount) // Pre-allocate with known capacity
-	for i := 0; i < pcCount; i++ {
+	for range pcCount {
 		sel := binary.BigEndian.Uint32(b[pos : pos+4])
 		ri.PairwiseCiphers = append(ri.PairwiseCiphers, RSNCipher(sel))
 		pos += 4
@@ -990,7 +989,7 @@ func decodeRSN(b []byte) (*RSNInfo, error) {
 	}
 
 	ri.AKMs = make([]RSNAKM, 0, akmCount) // Pre-allocate with known capacity
-	for i := 0; i < akmCount; i++ {
+	for range akmCount {
 		sel := binary.BigEndian.Uint32(b[pos : pos+4])
 		ri.AKMs = append(ri.AKMs, RSNAKM(sel))
 		pos += 4

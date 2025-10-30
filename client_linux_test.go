@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package wifi
 
@@ -566,7 +565,7 @@ func bitrateAttr(bitrate int) uint32 {
 	return uint32(bitrate / 100 / 1000)
 }
 
-func mustMessages(t *testing.T, command uint8, want interface{}) genltest.Func {
+func mustMessages(t *testing.T, command uint8, want any) genltest.Func {
 	var as []attributeser
 
 	switch xs := want.(type) {
