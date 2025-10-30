@@ -3,9 +3,10 @@ package wifi
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"net"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 // errInvalidIE is returned when one or more IEs are malformed.
@@ -615,9 +616,8 @@ func FrequencyToChannel(freq int) int {
 		return (freq - 5000) / 5
 	} else if freq >= 58320 && freq <= 64800 {
 		return (freq - 56160) / 2160
-	} else {
-		return 0
 	}
+	return 0
 }
 
 // Constants representing the standard WiFi frequency bands.

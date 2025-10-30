@@ -742,7 +742,7 @@ func (p *PHY) parseAttributes(attrs []netlink.Attribute) error {
 				// band.Type has the band number
 				err := p.parseBandAttributes(band)
 				if err != nil {
-					return fmt.Errorf("Couldn't decode band %d (attr#%d) data: %s",
+					return fmt.Errorf("could not decode band %d (attr#%d) data: %s",
 						band.Type, i, err)
 				}
 			}
@@ -755,7 +755,7 @@ func (p *PHY) parseAttributes(attrs []netlink.Attribute) error {
 			for i, combo := range nattrs {
 				c, err := parseCombo(combo)
 				if err != nil {
-					return fmt.Errorf("Couldn't decode combo %d data: %s", i, err)
+					return fmt.Errorf("could not decode combo %d data: %s", i, err)
 				}
 				p.InterfaceCombinations = append(p.InterfaceCombinations, *c)
 			}
@@ -945,23 +945,23 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 // based on information from an HT Capabilities Info field (NL80211_BAND_ATTR_HT_CAPA).
 // Create a new one if nil is passed in, but allow for the struct to have other
 // fields already set.
-func decodeHTCapabilities(htcap *HTCapabilities, cap uint16) *HTCapabilities {
+func decodeHTCapabilities(htcap *HTCapabilities, capability uint16) *HTCapabilities {
 	if htcap == nil {
 		htcap = new(HTCapabilities)
 	}
 
-	htcap.RxLDPC = cap&(1<<0) != 0
-	htcap.CW40 = cap&(1<<1) != 0
-	htcap.HTGreenfield = cap&(1<<4) != 0
-	htcap.SGI20 = cap&(1<<5) != 0
-	htcap.SGI40 = cap&(1<<6) != 0
-	htcap.TxSTBC = cap&(1<<7) != 0
-	htcap.RxSTBCStreams = uint8((cap >> 8) & 0x3)
-	htcap.HTDelayedBlockAck = cap&(1<<10) != 0
-	htcap.LongMaxAMSDULength = cap&(1<<11) != 0
-	htcap.DSSSCCKHT40 = cap&(1<<12) != 0
-	htcap.FortyMhzIntolerant = cap&(1<<14) != 0
-	htcap.LSIGTxOPProtection = cap&(1<<15) != 0
+	htcap.RxLDPC = capability&(1<<0) != 0
+	htcap.CW40 = capability&(1<<1) != 0
+	htcap.HTGreenfield = capability&(1<<4) != 0
+	htcap.SGI20 = capability&(1<<5) != 0
+	htcap.SGI40 = capability&(1<<6) != 0
+	htcap.TxSTBC = capability&(1<<7) != 0
+	htcap.RxSTBCStreams = uint8((capability >> 8) & 0x3)
+	htcap.HTDelayedBlockAck = capability&(1<<10) != 0
+	htcap.LongMaxAMSDULength = capability&(1<<11) != 0
+	htcap.DSSSCCKHT40 = capability&(1<<12) != 0
+	htcap.FortyMhzIntolerant = capability&(1<<14) != 0
+	htcap.LSIGTxOPProtection = capability&(1<<15) != 0
 
 	return htcap
 }
@@ -970,11 +970,11 @@ func decodeHTCapabilities(htcap *HTCapabilities, cap uint16) *HTCapabilities {
 // based on information from an VHT Capabilities Info field (NL80211_BAND_ATTR_VHT_CAPA).
 // Create a new one if nil is passed in, but allow for the struct to have other
 // fields already set.
-func decodeVHTCapabilities(vhtcap *VHTCapabilities, cap uint32) *VHTCapabilities {
+func decodeVHTCapabilities(vhtcap *VHTCapabilities, capability uint32) *VHTCapabilities {
 	if vhtcap == nil {
 		vhtcap = new(VHTCapabilities)
 	}
-	switch int(cap & 0x3) {
+	switch int(capability & 0x3) {
 	case 0:
 		vhtcap.MaxMPDULength = 3895
 	case 1:
@@ -982,26 +982,26 @@ func decodeVHTCapabilities(vhtcap *VHTCapabilities, cap uint32) *VHTCapabilities
 	case 2:
 		vhtcap.MaxMPDULength = 11454
 	}
-	vhtcap.VHT160 = cap&(1<<2) != 0
-	vhtcap.VHT8080 = cap&(1<<3) != 0
-	vhtcap.RXLDPC = cap&(1<<4) != 0
-	vhtcap.ShortGI80 = cap&(1<<5) != 0
-	vhtcap.ShortGI160 = cap&(1<<6) != 0
-	vhtcap.TXSTBC = cap&(1<<7) != 0
-	vhtcap.RXSTBC = int((cap >> 8) & 0x7)
-	vhtcap.SuBeamFormer = cap&(1<<11) != 0
-	vhtcap.SuBeamFormee = cap&(1<<12) != 0
-	vhtcap.BFAntenna = int((cap>>13)&0x7) - 1
-	vhtcap.SoundingDimension = int((cap >> 16) & 0x7)
-	vhtcap.MuBeamformer = cap&(1<<19) != 0
-	vhtcap.MuBeamformee = cap&(1<<20) != 0
-	vhtcap.VTHTXOPPS = cap&(1<<21) != 0
-	vhtcap.HTCVHT = cap&(1<<22) != 0
-	vhtcap.MaxAMPDU = 2 ^ (13 + int((cap>>23)&0x2)) - 1
-	vhtcap.VHTLinkAdapt = int((cap >> 27) & 0x3)
-	vhtcap.RXAntennaPattern = cap&(1<<28) != 0
-	vhtcap.TXAntennaPattern = cap&(1<<29) != 0
-	vhtcap.ExtendedNSSBW = int((cap >> 30) & 0x7)
+	vhtcap.VHT160 = capability&(1<<2) != 0
+	vhtcap.VHT8080 = capability&(1<<3) != 0
+	vhtcap.RXLDPC = capability&(1<<4) != 0
+	vhtcap.ShortGI80 = capability&(1<<5) != 0
+	vhtcap.ShortGI160 = capability&(1<<6) != 0
+	vhtcap.TXSTBC = capability&(1<<7) != 0
+	vhtcap.RXSTBC = int((capability >> 8) & 0x7)
+	vhtcap.SuBeamFormer = capability&(1<<11) != 0
+	vhtcap.SuBeamFormee = capability&(1<<12) != 0
+	vhtcap.BFAntenna = int((capability>>13)&0x7) - 1
+	vhtcap.SoundingDimension = int((capability >> 16) & 0x7)
+	vhtcap.MuBeamformer = capability&(1<<19) != 0
+	vhtcap.MuBeamformee = capability&(1<<20) != 0
+	vhtcap.VTHTXOPPS = capability&(1<<21) != 0
+	vhtcap.HTCVHT = capability&(1<<22) != 0
+	vhtcap.MaxAMPDU = 2 ^ (13 + int((capability>>23)&0x2)) - 1
+	vhtcap.VHTLinkAdapt = int((capability >> 27) & 0x3)
+	vhtcap.RXAntennaPattern = capability&(1<<28) != 0
+	vhtcap.TXAntennaPattern = capability&(1<<29) != 0
+	vhtcap.ExtendedNSSBW = int((capability >> 30) & 0x7)
 
 	return vhtcap
 }
