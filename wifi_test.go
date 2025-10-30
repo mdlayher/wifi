@@ -76,6 +76,83 @@ func TestInterfaceTypeString(t *testing.T) {
 	}
 }
 
+func TestChannelWidthString(t *testing.T) {
+	tests := []struct {
+		t ChannelWidth
+		s string
+	}{
+		{
+			t: ChannelWidth20NoHT,
+			s: "20 MHz (no HT)",
+		},
+		{
+			t: ChannelWidth20,
+			s: "20 MHz",
+		},
+		{
+			t: ChannelWidth40,
+			s: "40 MHz",
+		},
+		{
+			t: ChannelWidth80,
+			s: "80 MHz",
+		},
+		{
+			t: ChannelWidth80P80,
+			s: "80+80 MHz",
+		},
+		{
+			t: ChannelWidth160,
+			s: "160 MHz",
+		},
+		{
+			t: ChannelWidth5,
+			s: "5 MHz",
+		},
+		{
+			t: ChannelWidth10,
+			s: "10 MHz",
+		},
+		{
+			t: ChannelWidth1,
+			s: "1 MHz",
+		},
+		{
+			t: ChannelWidth2,
+			s: "2 MHz",
+		},
+		{
+			t: ChannelWidth4,
+			s: "4 MHz",
+		},
+		{
+			t: ChannelWidth8,
+			s: "8 MHz",
+		},
+		{
+			t: ChannelWidth16,
+			s: "16 MHz",
+		},
+		{
+			t: ChannelWidth320,
+			s: "320 MHz",
+		},
+		{
+			t: ChannelWidth320 + 1,
+			s: "unknown(14)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			if want, got := tt.s, tt.t.String(); want != got {
+				t.Fatalf("unexpected channel width string:\n- want: %q\n-  got: %q",
+					want, got)
+			}
+		})
+	}
+}
+
 func TestBSSStatusString(t *testing.T) {
 	tests := []struct {
 		t BSSStatus

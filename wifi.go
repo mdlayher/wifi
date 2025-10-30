@@ -121,6 +121,66 @@ func (t InterfaceType) String() string {
 	}
 }
 
+// A ChannelWidth is the width of a WiFi channel.
+//
+// On Linux, ChannelWidth copies the ordering of nl80211's channel width constants.
+// This may not be the case on other operating systems.
+// See: https://github.com/torvalds/linux/blob/v6.17/include/uapi/linux/nl80211.h#L5136-L5177
+type ChannelWidth int
+
+const (
+	ChannelWidth20NoHT ChannelWidth = iota
+	ChannelWidth20
+	ChannelWidth40
+	ChannelWidth80
+	ChannelWidth80P80
+	ChannelWidth160
+	ChannelWidth5
+	ChannelWidth10
+	ChannelWidth1
+	ChannelWidth2
+	ChannelWidth4
+	ChannelWidth8
+	ChannelWidth16
+	ChannelWidth320
+)
+
+// String returns the string representation of an InterfaceType.
+func (t ChannelWidth) String() string {
+	switch t {
+	case ChannelWidth20NoHT:
+		return "20 MHz (no HT)"
+	case ChannelWidth20:
+		return "20 MHz"
+	case ChannelWidth40:
+		return "40 MHz"
+	case ChannelWidth80:
+		return "80 MHz"
+	case ChannelWidth80P80:
+		return "80+80 MHz"
+	case ChannelWidth160:
+		return "160 MHz"
+	case ChannelWidth5:
+		return "5 MHz"
+	case ChannelWidth10:
+		return "10 MHz"
+	case ChannelWidth1:
+		return "1 MHz"
+	case ChannelWidth2:
+		return "2 MHz"
+	case ChannelWidth4:
+		return "4 MHz"
+	case ChannelWidth8:
+		return "8 MHz"
+	case ChannelWidth16:
+		return "16 MHz"
+	case ChannelWidth320:
+		return "320 MHz"
+	default:
+		return fmt.Sprintf("unknown(%d)", t)
+	}
+}
+
 // An Interface is a WiFi network interface.
 type Interface struct {
 	// The index of the interface.
@@ -143,6 +203,9 @@ type Interface struct {
 
 	// The interface's wireless frequency in MHz.
 	Frequency int
+
+	// The interface's wireless channel width.
+	ChannelWidth ChannelWidth
 }
 
 // StationInfo contains statistics about a WiFi interface operating in

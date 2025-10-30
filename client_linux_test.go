@@ -33,6 +33,7 @@ func TestLinux_clientInterfacesOK(t *testing.T) {
 			Device:       1,
 			Type:         InterfaceTypeStation,
 			Frequency:    2412,
+			ChannelWidth: ChannelWidth80,
 		},
 		{
 			HardwareAddr: net.HardwareAddr{0xde, 0xad, 0xbe, 0xef, 0xde, 0xae},
@@ -459,6 +460,7 @@ func (ifi *Interface) attributes() []netlink.Attribute {
 		{Type: unix.NL80211_ATTR_IFTYPE, Data: nlenc.Uint32Bytes(uint32(ifi.Type))},
 		{Type: unix.NL80211_ATTR_WDEV, Data: nlenc.Uint64Bytes(uint64(ifi.Device))},
 		{Type: unix.NL80211_ATTR_WIPHY_FREQ, Data: nlenc.Uint32Bytes(uint32(ifi.Frequency))},
+		{Type: unix.NL80211_ATTR_CHANNEL_WIDTH, Data: nlenc.Uint32Bytes(uint32(ifi.ChannelWidth))},
 	}
 }
 
