@@ -4,6 +4,7 @@
 package wifi
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"time"
@@ -23,7 +24,10 @@ func (*client) Interfaces() ([]*Interface, error)                { return nil, e
 func (c *client) PHY(_ uint32) (*PHY, error)                     { return nil, errUnimplemented }
 func (c *client) PHYs() ([]*PHY, error)                          { return nil, errUnimplemented }
 func (*client) BSS(_ *Interface) (*BSS, error)                   { return nil, errUnimplemented }
+func (client) AccessPoints(ifi *Interface) ([]*BSS, error)       { return nil, errUnimplemented }
 func (*client) StationInfo(_ *Interface) ([]*StationInfo, error) { return nil, errUnimplemented }
+func (*client) SurveyInfo(_ *Interface) ([]*SurveyInfo, error)   { return nil, errUnimplemented }
+func (*client) Scan(ctx context.Context, ifi *Interface) error   { return errUnimplemented }
 func (*client) Connect(_ *Interface, _ string) error             { return errUnimplemented }
 func (*client) Disconnect(_ *Interface) error                    { return errUnimplemented }
 func (*client) ConnectWPAPSK(_ *Interface, _, _ string) error    { return errUnimplemented }

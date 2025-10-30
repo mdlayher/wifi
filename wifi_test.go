@@ -1,7 +1,9 @@
 package wifi
 
 import (
+	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -74,6 +76,83 @@ func TestInterfaceTypeString(t *testing.T) {
 	}
 }
 
+func TestChannelWidthString(t *testing.T) {
+	tests := []struct {
+		t ChannelWidth
+		s string
+	}{
+		{
+			t: ChannelWidth20NoHT,
+			s: "20 MHz (no HT)",
+		},
+		{
+			t: ChannelWidth20,
+			s: "20 MHz",
+		},
+		{
+			t: ChannelWidth40,
+			s: "40 MHz",
+		},
+		{
+			t: ChannelWidth80,
+			s: "80 MHz",
+		},
+		{
+			t: ChannelWidth80P80,
+			s: "80+80 MHz",
+		},
+		{
+			t: ChannelWidth160,
+			s: "160 MHz",
+		},
+		{
+			t: ChannelWidth5,
+			s: "5 MHz",
+		},
+		{
+			t: ChannelWidth10,
+			s: "10 MHz",
+		},
+		{
+			t: ChannelWidth1,
+			s: "1 MHz",
+		},
+		{
+			t: ChannelWidth2,
+			s: "2 MHz",
+		},
+		{
+			t: ChannelWidth4,
+			s: "4 MHz",
+		},
+		{
+			t: ChannelWidth8,
+			s: "8 MHz",
+		},
+		{
+			t: ChannelWidth16,
+			s: "16 MHz",
+		},
+		{
+			t: ChannelWidth320,
+			s: "320 MHz",
+		},
+		{
+			t: ChannelWidth320 + 1,
+			s: "unknown(14)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.s, func(t *testing.T) {
+			if want, got := tt.s, tt.t.String(); want != got {
+				t.Fatalf("unexpected channel width string:\n- want: %q\n-  got: %q",
+					want, got)
+			}
+		})
+	}
+}
+
 func TestBSSStatusString(t *testing.T) {
 	tests := []struct {
 		t BSSStatus
@@ -88,12 +167,16 @@ func TestBSSStatusString(t *testing.T) {
 			s: "associated",
 		},
 		{
+			t: BSSStatusNotAssociated,
+			s: "unassociated",
+		},
+		{
 			t: BSSStatusIBSSJoined,
 			s: "IBSS joined",
 		},
 		{
-			t: 3,
-			s: "unknown(3)",
+			t: 4,
+			s: "unknown(4)",
 		},
 	}
 
@@ -178,4 +261,223 @@ func Test_parseIEs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRSNCipherString(t *testing.T) {
+	tests := []struct {
+		cipher RSNCipher
+		want   string
+	}{
+		{RSNCipherUseGroup, "Use‑group"},
+		{RSNCipherWEP40, "WEP‑40"},
+		{RSNCipherTKIP, "TKIP"},
+		{RSNCipherReserved3, "Reserved‑3"},
+		{RSNCipherCCMP128, "CCMP‑128"},
+		{RSNCipherWEP104, "WEP‑104"},
+		{RSNCipherBIPCMAC128, "BIP‑CMAC‑128"},
+		{RSNCipherGroupNotAllowed, "Group‑not‑allowed"},
+		{RSNCipherGCMP128, "GCMP‑128"},
+		{RSNCipherGCMP256, "GCMP‑256"},
+		{RSNCipherCCMP256, "CCMP‑256"},
+		{RSNCipherBIPGMAC128, "BIP‑GMAC‑128"},
+		{RSNCipherBIPGMAC256, "BIP‑GMAC‑256"},
+		{RSNCipherBIPCMAC256, "BIP‑CMAC‑256"},
+		{RSNCipher(0x000FAC99), "Unknown-0x000FAC99"}, // Unknown cipher
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.cipher.String(); got != tt.want {
+				t.Errorf("RSNCipher.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRSNAKMString(t *testing.T) {
+	tests := []struct {
+		akm  RSNAKM
+		want string
+	}{
+		{RSNAkmReserved0, "Reserved‑0"},
+		{RSNAkm8021X, "802.1X"},
+		{RSNAkmPSK, "PSK"},
+		{RSNAkmFT8021X, "FT‑802.1X"},
+		{RSNAkmFTPSK, "FT‑PSK"},
+		{RSNAkm8021XSHA256, "802.1X‑SHA256"},
+		{RSNAkmPSKSHA256, "PSK‑SHA256"},
+		{RSNAkmTDLS, "TDLS"},
+		{RSNAkmSAE, "SAE"},
+		{RSNAkmFTSAE, "FT‑SAE"},
+		{RSNAkmAPPeerKey, "AP‑PeerKey"},
+		{RSNAkm8021XSuiteB, "802.1X‑Suite‑B"},
+		{RSNAkm8021XCNSA, "802.1X‑CNSA"},
+		{RSNAkmFT8021XSHA384, "FT‑802.1X‑SHA384"},
+		{RSNAkmFILSSHA256, "FILS‑SHA256"},
+		{RSNAkmFILSSHA384, "FILS‑SHA384"},
+		{RSNAkmFTFILSSHA256, "FT‑FILS‑SHA256"},
+		{RSNAkmFTFILSSHA384, "FT‑FILS‑SHA384"},
+		{RSNAkmReserved18, "Reserved‑18"},
+		{RSNAkmFTPSKSHA384, "FT‑PSK‑SHA384"},
+		{RSNAkmPSKSHA384, "PSK‑SHA384"},
+		{RSNAKM(0x000FAC99), "Unknown-0x000FAC99"}, // Unknown AKM
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.akm.String(); got != tt.want {
+				t.Errorf("RSNAKM.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRSNInfoIsInitialized(t *testing.T) {
+	tests := []struct {
+		name string
+		rsn  RSNInfo
+		want bool
+	}{
+		{
+			name: "uninitialized",
+			rsn:  RSNInfo{},
+			want: false,
+		},
+		{
+			name: "initialized_version_1",
+			rsn:  RSNInfo{Version: 1},
+			want: true,
+		},
+		{
+			name: "initialized_version_2",
+			rsn:  RSNInfo{Version: 2},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.rsn.IsInitialized(); got != tt.want {
+				t.Errorf("RSNInfo.IsInitialized() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRSNInfoString(t *testing.T) {
+	tests := []struct {
+		name string
+		rsn  RSNInfo
+		want string
+	}{
+		{
+			name: "uninitialized",
+			rsn:  RSNInfo{},
+			want: "",
+		},
+		{
+			name: "basic_wpa2",
+			rsn: RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherCCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherCCMP128},
+				AKMs:            []RSNAKM{RSNAkmPSK},
+			},
+			want: "RSN v1  Group:CCMP‑128  Pairwise:[CCMP‑128]  AKM:[PSK]",
+		},
+		{
+			name: "wpa3_multiple_ciphers",
+			rsn: RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherGCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherGCMP128, RSNCipherCCMP128},
+				AKMs:            []RSNAKM{RSNAkmSAE, RSNAkmPSK},
+			},
+			want: "RSN v1  Group:GCMP‑128  Pairwise:[GCMP‑128 CCMP‑128]  AKM:[SAE PSK]",
+		},
+		{
+			name: "enterprise_with_ft",
+			rsn: RSNInfo{
+				Version:         1,
+				GroupCipher:     RSNCipherCCMP128,
+				PairwiseCiphers: []RSNCipher{RSNCipherCCMP128},
+				AKMs:            []RSNAKM{RSNAkm8021X, RSNAkmFT8021X},
+			},
+			want: "RSN v1  Group:CCMP‑128  Pairwise:[CCMP‑128]  AKM:[802.1X FT‑802.1X]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.rsn.String(); got != tt.want {
+				t.Errorf("RSNInfo.String() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRSNErrorHierarchy(t *testing.T) {
+	// Test that specific errors wrap the base error and basic functionality
+	tests := []struct {
+		name        string
+		err         error
+		description string
+	}{
+		{"DataTooLarge", errRSNDataTooLarge, "data exceeds maximum size"},
+		{"TooShort", errRSNTooShort, "IE too short"},
+		{"InvalidVersion", errRSNInvalidVersion, "invalid version"},
+		{"TruncatedPairwiseCount", errRSNTruncatedPairwiseCount, "truncated before pairwise count"},
+		{"PairwiseCipherCountTooLarge", errRSNPairwiseCipherCountTooLarge, "pairwise cipher count too large"},
+		{"TruncatedPairwiseList", errRSNTruncatedPairwiseList, "truncated in pairwise list"},
+		{"AKMCountTooLarge", errRSNAKMCountTooLarge, "AKM count too large"},
+		{"TruncatedAKMList", errRSNTruncatedAKMList, "truncated in AKM list"},
+		{"TooSmallForCounts", errRSNTooSmallForCounts, "too small for declared cipher/AKM counts"},
+		{"PMKIDCountTooLarge", errRSNPMKIDCountTooLarge, "PMKID count too large"},
+		{"TruncatedPMKIDList", errRSNTruncatedPMKIDList, "truncated in PMKID list"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test that the specific error wraps the base error (errors.Is functionality)
+			if !errors.Is(tt.err, errRSNParse) {
+				t.Errorf("errors.Is(%v, errRSNParse) = false, want true", tt.err)
+			}
+
+			// Test that the specific error is still identifiable as itself
+			if !errors.Is(tt.err, tt.err) {
+				t.Errorf("errors.Is(%v, %v) = false, want true", tt.err, tt.err)
+			}
+
+			// Test that specific errors don't match other specific errors
+			if tt.err != errRSNDataTooLarge && errors.Is(tt.err, errRSNDataTooLarge) {
+				t.Errorf("error %v should not match errRSNDataTooLarge", tt.err)
+			}
+
+			// Test that RSN errors don't match non-RSN errors
+			if errors.Is(tt.err, errInvalidIE) {
+				t.Errorf("RSN error %v should not match errInvalidIE", tt.err)
+			}
+
+			// Test that error message is properly formatted
+			errMsg := tt.err.Error()
+			if errMsg == "" {
+				t.Errorf("error message is empty")
+			}
+
+			// Verify error message contains both base and specific parts
+			if !strings.Contains(errMsg, errRSNParse.Error()) {
+				t.Errorf("error message should contain %q, got: %q", errRSNParse.Error(), errMsg)
+			}
+			if !strings.Contains(errMsg, tt.description) {
+				t.Errorf("error message should contain %q, got: %q", tt.description, errMsg)
+			}
+		})
+	}
+
+	// Test that base error doesn't match specific errors
+	t.Run("Base error isolation", func(t *testing.T) {
+		if errors.Is(errRSNParse, errRSNDataTooLarge) {
+			t.Error("base error should not match specific errors")
+		}
+	})
 }

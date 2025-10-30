@@ -1,6 +1,7 @@
 package wifi
 
 import (
+	"context"
 	"time"
 )
 
@@ -58,6 +59,18 @@ func (c *Client) PHYs() ([]*PHY, error) { return c.c.PHYs() }
 // PHY returns the WiFi device corresponding to the specified index.
 func (c *Client) PHY(index uint32) (*PHY, error) { return c.c.PHY(index) }
 
+// AccessPoints retrieves the currently known BSS around the specified Interface.
+func (c *Client) AccessPoints(ifi *Interface) ([]*BSS, error) {
+	return c.c.AccessPoints(ifi)
+}
+
+// Scan requests the wifi interface to scan for new access points.
+//
+// Use context.WithDeadline to set a timeout.
+func (c *Client) Scan(ctx context.Context, ifi *Interface) error {
+	return c.c.Scan(ctx, ifi)
+}
+
 // StationInfo retrieves all station statistics about a WiFi interface.
 //
 // Since v0.2.0: if there are no stations, an empty slice is returned instead
@@ -65,6 +78,9 @@ func (c *Client) PHY(index uint32) (*PHY, error) { return c.c.PHY(index) }
 func (c *Client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return c.c.StationInfo(ifi)
 }
+
+// SurveyInfo retrieves the survey information about a WiFi interface.
+func (c *Client) SurveyInfo(ifi *Interface) ([]*SurveyInfo, error) { return c.c.SurveyInfo(ifi) }
 
 // SetDeadline sets the read and write deadlines associated with the connection.
 func (c *Client) SetDeadline(t time.Time) error {
