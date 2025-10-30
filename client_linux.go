@@ -509,7 +509,6 @@ func parseGetScanResult(msgs []genetlink.Message) ([]*BSS, error) {
 }
 
 // parseInterfaces parses zero or more Interfaces from nl80211 interface
-// ParseInterfaces parses zero or more Interfaces from nl80211 interface
 // messages.
 func ParseInterfaces(msgs []genetlink.Message) ([]*Interface, error) {
 	ifis := make([]*Interface, 0, len(msgs))
