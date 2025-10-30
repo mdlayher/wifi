@@ -247,6 +247,12 @@ type BSS struct {
 	// Status: The status of the client within the BSS.
 	Status BSSStatus
 
+	// Signal: The signal strength of the BSS, in mBm (divide by 100 to get dBm).
+	Signal int32
+
+	// SignalUnspecified: The signal strength of the BSS, in percent.
+	SignalUnspecified uint32
+
 	// Load: The load element of the BSS (contains StationCount, ChannelUtilization and AvailableAdmissionCapacity).
 	Load BSSLoad
 
