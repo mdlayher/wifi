@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package wifi_test
 
@@ -46,7 +45,7 @@ func TestIntegrationLinuxConcurrent(t *testing.T) {
 	wg.Add(workers)
 	defer wg.Wait()
 
-	for i := 0; i < workers; i++ {
+	for i := range workers {
 		go func(differentI int) {
 			defer wg.Done()
 			execN(t, iterations, names, differentI)
@@ -58,7 +57,7 @@ func execN(t *testing.T, n int, expect []string, workerID int) {
 	c := testClient(t)
 
 	names := make(map[string]int)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		ifis, err := c.Interfaces()
 		if err != nil {
 			panicf("[worker_id %d; iteration %d] failed to retrieve interfaces: %v", workerID, i, err)
@@ -112,7 +111,7 @@ func testClient(t *testing.T) *wifi.Client {
 	return c
 }
 
-func panicf(format string, a ...interface{}) {
+func panicf(format string, a ...any) {
 	panic(fmt.Sprintf(format, a...))
 }
 
