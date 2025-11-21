@@ -774,7 +774,7 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 
 func bitrateStr(bitrate int) string {
 	if bitrate > 0 {
-		return fmt.Sprintf("%d.%d Mb/s ", bitrate/10, bitrate%10)
+		return fmt.Sprintf("%d.%d MBit/s ", bitrate/10, bitrate%10)
 	} else {
 		return "(unknown)"
 	}
@@ -807,6 +807,8 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 	for _, a := range attrs {
 		// see iw's station.c for reference implementation
 		// serach for parse_bitrate(struct nlattr *bitrate_attr, char *buf, int buflen)
+		// at the moment of implementation iw v6.17 was used:
+		// https://git.kernel.org/pub/scm/linux/kernel/git/jberg/iw.git/tree/station.c?h=v6.17#n199
 		switch a.Type {
 		case unix.NL80211_RATE_INFO_BITRATE32:
 			info.Bitrate = int(nlenc.Uint32(a.Data))
@@ -857,7 +859,6 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 		case unix.NL80211_RATE_INFO_SHORT_GI:
 			htModulationInfo.ShortGi = true
 			vhtModulationInfo.ShortGi = true
-			// shortGi = true // TODO: Do other modulations support short GI?
 			iwDescription += " Short GI"
 		case unix.NL80211_RATE_INFO_VHT_NSS:
 			vhtModulationInfo.NSS = int(nlenc.Uint8(a.Data))
@@ -890,15 +891,10 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 			ehtModulationInfo.RUAlloc = int(nlenc.Uint8(a.Data))
 			iwDescription += fmt.Sprintf(" EHT-RU-ALLOC %d", ehtModulationInfo.RUAlloc)
 		}
-
-		// if info.Bitrate == 0 && a.Type == unix.NL80211_RATE_INFO_BITRATE {
-		// 	info.Bitrate = int(nlenc.Uint16(a.Data))
-		// }
 	}
 
 	// Assign modulation info based on what was found
-	// Verify and assign modulation info
-	//highest WiFi standard with valid MCS found determines modulation type
+	// highest WiFi standard with valid MCS found determines modulation type
 	switch {
 	case ehtModulationInfo.MCS != -1:
 		info.ModulationType = RateModulationInfoTypeEHT
