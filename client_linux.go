@@ -8,6 +8,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -750,13 +751,9 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 			switch a.Type {
 			case unix.NL80211_STA_INFO_RX_BITRATE:
 				info.ReceiveBitrate = rate.Bitrate
-				info.RX_MCS = rate.MCS
-				info.RX_VHT_MCS = rate.VHT_MCS
 				info.ReceiveRateInfo = *rate
 			case unix.NL80211_STA_INFO_TX_BITRATE:
 				info.TransmitBitrate = rate.Bitrate
-				info.TX_MCS = rate.MCS
-				info.TX_VHT_MCS = rate.VHT_MCS
 				info.TransmitRateInfo = *rate
 			}
 		}
@@ -775,6 +772,14 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 	return nil
 }
 
+func bitrateStr(bitrate int) string {
+	if bitrate > 0 {
+		return fmt.Sprintf("%d.%d Mb/s ", bitrate/10, bitrate%10)
+	} else {
+		return "(unknown)"
+	}
+}
+
 // parseRateInfo parses a rateInfo from netlink attributes.
 func parseRateInfo(b []byte) (*RateInfo, error) {
 	attrs, err := netlink.UnmarshalAttributes(b)
@@ -783,25 +788,140 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 	}
 
 	var info RateInfo
+	// initialize with unknown values
+	// baseModulationInfo := BaseModulationInfo{MCS: -1, NSS: -1}
+	htModulationInfo := HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+	vhtModulationInfo := VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+	heModulationInfo := HEModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+	ehtModulationInfo := EHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+
+	// build the string seperately and assign at the end
+	var iwDescription string
+	iwDescription = ""
+	// shortGi := false
+
+	// re-use Channel Width type from Interface, even though we classify via NL80211_RATE_INFO_*
+	// strings are done manually do keep comaptibility with iw
+	var channelWidth ChannelWidth
+
 	for _, a := range attrs {
+		// see iw's station.c for reference implementation
+		// serach for parse_bitrate(struct nlattr *bitrate_attr, char *buf, int buflen)
 		switch a.Type {
 		case unix.NL80211_RATE_INFO_BITRATE32:
 			info.Bitrate = int(nlenc.Uint32(a.Data))
+			iwDescription += bitrateStr(info.Bitrate)
+		case unix.NL80211_RATE_INFO_BITRATE:
+			// Only use 16-bit counters if the 32-bit counters are not present.
+			// If the 32-bit counters appear later in the slice, they will overwrite
+			// these values.
+			if info.Bitrate == 0 {
+				info.Bitrate = int(nlenc.Uint16(a.Data))
+				iwDescription += bitrateStr(info.Bitrate)
+			}
 		case unix.NL80211_RATE_INFO_MCS:
-			info.MCS = int(nlenc.Uint8(a.Data))
+			htModulationInfo.HT_MCS = int(nlenc.Uint8(a.Data))
+			htModulationInfo.MCS = htModulationInfo.HT_MCS % 8
+			htModulationInfo.NSS = (htModulationInfo.HT_MCS / 8) + 1
+			iwDescription += fmt.Sprintf(" MCS %d", htModulationInfo.HT_MCS)
 		case unix.NL80211_RATE_INFO_VHT_MCS:
-			info.VHT_MCS = int(nlenc.Uint8(a.Data))
+			vhtModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" VHT-MCS %d", vhtModulationInfo.MCS)
+		case unix.NL80211_RATE_INFO_40_MHZ_WIDTH:
+			channelWidth = ChannelWidth40
+			iwDescription += " 40MHz"
+		case unix.NL80211_RATE_INFO_80_MHZ_WIDTH:
+			channelWidth = ChannelWidth80
+			iwDescription += " 80MHz"
+		case unix.NL80211_RATE_INFO_80P80_MHZ_WIDTH:
+			channelWidth = ChannelWidth80P80
+			iwDescription += " 80P80MHz"
+		case unix.NL80211_RATE_INFO_160_MHZ_WIDTH:
+			channelWidth = ChannelWidth160
+			iwDescription += " 160MHz"
+		case unix.NL80211_RATE_INFO_320_MHZ_WIDTH:
+			channelWidth = ChannelWidth320
+			iwDescription += " 320MHz"
+		case unix.NL80211_RATE_INFO_1_MHZ_WIDTH:
+			channelWidth = ChannelWidth1
+			iwDescription += " 1MHz"
+		case unix.NL80211_RATE_INFO_2_MHZ_WIDTH:
+			channelWidth = ChannelWidth2
+			iwDescription += " 2MHz"
+		case unix.NL80211_RATE_INFO_4_MHZ_WIDTH:
+			channelWidth = ChannelWidth4
+			iwDescription += " 4MHz"
+		case unix.NL80211_RATE_INFO_16_MHZ_WIDTH:
+			channelWidth = ChannelWidth16
+			iwDescription += " 16MHz"
+		case unix.NL80211_RATE_INFO_SHORT_GI:
+			htModulationInfo.ShortGi = true
+			vhtModulationInfo.ShortGi = true
+			// shortGi = true // TODO: Do other modulations support short GI?
+			iwDescription += " Short GI"
 		case unix.NL80211_RATE_INFO_VHT_NSS:
-			info.VHT_NSS = int(nlenc.Uint8(a.Data))
+			vhtModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" VHT-NSS %d", vhtModulationInfo.NSS)
+		case unix.NL80211_RATE_INFO_HE_MCS:
+			heModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-MCS %d", heModulationInfo.MCS)
+		case unix.NL80211_RATE_INFO_HE_NSS:
+			heModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-NSS %d", heModulationInfo.NSS)
+		case unix.NL80211_RATE_INFO_HE_GI:
+			heModulationInfo.Gi = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-GI %d", heModulationInfo.Gi)
+		case unix.NL80211_RATE_INFO_HE_DCM:
+			heModulationInfo.DCM = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-DCM %d", heModulationInfo.DCM)
+		case unix.NL80211_RATE_INFO_HE_RU_ALLOC:
+			heModulationInfo.RUAlloc = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-RU-ALLOC %d", heModulationInfo.RUAlloc)
+		case unix.NL80211_RATE_INFO_EHT_MCS:
+			ehtModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-MCS %d", ehtModulationInfo.MCS)
+		case unix.NL80211_RATE_INFO_EHT_NSS:
+			ehtModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-NSS %d", ehtModulationInfo.NSS)
+		case unix.NL80211_RATE_INFO_EHT_GI:
+			ehtModulationInfo.Gi = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-GI %d", ehtModulationInfo.Gi)
+		case unix.NL80211_RATE_INFO_EHT_RU_ALLOC:
+			ehtModulationInfo.RUAlloc = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-RU-ALLOC %d", ehtModulationInfo.RUAlloc)
 		}
 
-		// Only use 16-bit counters if the 32-bit counters are not present.
-		// If the 32-bit counters appear later in the slice, they will overwrite
-		// these values.
-		if info.Bitrate == 0 && a.Type == unix.NL80211_RATE_INFO_BITRATE {
-			info.Bitrate = int(nlenc.Uint16(a.Data))
-		}
+		// if info.Bitrate == 0 && a.Type == unix.NL80211_RATE_INFO_BITRATE {
+		// 	info.Bitrate = int(nlenc.Uint16(a.Data))
+		// }
 	}
+
+	// Assign modulation info based on what was found
+	// Verify and assign modulation info
+	//highest WiFi standard with valid MCS found determines modulation type
+	switch {
+	case ehtModulationInfo.MCS != -1:
+		info.ModulationType = RateModulationInfoTypeEHT
+		ehtModulationInfo.IwDescription = iwDescription
+		info.Modulation = ehtModulationInfo
+	case heModulationInfo.MCS != -1:
+		info.ModulationType = RateModulationInfoTypeHE
+		heModulationInfo.IwDescription = iwDescription
+		info.Modulation = heModulationInfo
+	case vhtModulationInfo.MCS != -1:
+		info.ModulationType = RateModulationInfoTypeVHT
+		vhtModulationInfo.IwDescription = iwDescription
+		info.Modulation = vhtModulationInfo
+	case htModulationInfo.MCS != -1:
+		info.ModulationType = RateModulationInfoTypeHT
+		htModulationInfo.IwDescription = iwDescription
+		info.Modulation = htModulationInfo
+	default:
+		info.ModulationType = RateModulationInfoTypeUNKNOWN
+		info.Modulation = nil
+	}
+
+	info.ChannelWidth = channelWidth
 
 	// Scale bitrate to bits/second as base unit instead of 100kbits/second.
 	// * @NL80211_RATE_INFO_BITRATE: total bitrate (u16, 100kbit/s)

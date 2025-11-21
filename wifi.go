@@ -208,27 +208,75 @@ type Interface struct {
 	ChannelWidth ChannelWidth
 }
 
-// type RateModulationInfo interface {
-// 	GetMCS() int
-// 	GetNSS() int
-// 	String() string
-// }
+type RateModulationInfo interface {
+	// MCS is the modulation and coding scheme index.
+	GetMCS() int
 
-// type htRateInfo struct {
-// 	MCS int
-// }
+	// NSS is the number of spatial streams.
+	GetNSS() int
 
-// func (r htRateInfo) GetMCS() int {
-// 	return r.MCS
-// }
+	// Description returns a human-readable description of the modulation.
+	// This will be in the format also used by iw.
+	Description() string
+}
 
-// func (r htRateInfo) GetNSS() int {
-// 	return (r.MCS / 8) + 1
-// }
+type BaseModulationInfo struct {
+	MCS           int
+	NSS           int
+	IwDescription string
+}
 
-// func (r htRateInfo) String() string {
-// 	return fmt.Sprintf("HT MCS %d", r.MCS)
-// }
+func (r BaseModulationInfo) GetMCS() int {
+	return r.MCS
+}
+
+func (r BaseModulationInfo) GetNSS() int {
+	return r.NSS
+}
+
+func (r BaseModulationInfo) Description() string {
+	return r.IwDescription
+}
+
+// HTModulationInfo represents modulation information for HT rates.
+// MCS Indexes originally range from 0 to 31. NSS is coded in the MCS index as follows:
+// NSS = (MCS / 8) + 1
+// MCS = MCS % 8
+// original MCS index is available as HT_MCS
+type HTModulationInfo struct {
+	BaseModulationInfo
+	HT_MCS  int
+	ShortGi bool
+}
+
+// VHTModulationInfo represents modulation information for VHT rates.
+type VHTModulationInfo struct {
+	BaseModulationInfo
+	ShortGi bool
+}
+
+type HEModulationInfo struct {
+	BaseModulationInfo
+	Gi      int
+	DCM     int
+	RUAlloc int
+}
+
+type EHTModulationInfo struct {
+	BaseModulationInfo
+	Gi      int
+	RUAlloc int
+}
+
+type RateModulationInfoType int
+
+const (
+	RateModulationInfoTypeHT RateModulationInfoType = iota
+	RateModulationInfoTypeVHT
+	RateModulationInfoTypeHE
+	RateModulationInfoTypeEHT
+	RateModulationInfoTypeUNKNOWN
+)
 
 // rateInfo provides statistics about the receive or transmit rate of
 // an interface.
@@ -236,14 +284,14 @@ type RateInfo struct {
 	// Bitrate in bits per second.
 	Bitrate int
 
-	// MCS is the modulation and coding scheme index for HT.
-	MCS int
+	// The type of modulation used. Can also be inferred from Modulation.(type)
+	ModulationType RateModulationInfoType
 
-	// VHT-MCS is the modulation and coding scheme index for VHT.
-	VHT_MCS int
+	// Modulation information.
+	Modulation RateModulationInfo
 
-	// VHT-NSS is the number of spatial streams for VHT.
-	VHT_NSS int
+	// Channel width used for this rate.
+	ChannelWidth ChannelWidth
 }
 
 // StationInfo contains statistics about a WiFi interface operating in
@@ -294,22 +342,10 @@ type StationInfo struct {
 	// The number of times a beacon loss was detected.
 	BeaconLoss int
 
-	// The current receive MCS indexes (for HT rates).
-	RX_MCS int
-
-	// The current transmit MCS indexes (for HT rates).
-	TX_MCS int
-
-	// The current receive MCS indexes (for VHT rates).
-	RX_VHT_MCS int
-
-	// The current transmit MCS indexes (for VHT rates).
-	TX_VHT_MCS int
-
-	// The current receive rate information.
+	// The current receive rate and modulation information.
 	ReceiveRateInfo RateInfo
 
-	// The current transmit rate information.
+	// The current transmit rate and modulation information.
 	TransmitRateInfo RateInfo
 }
 
