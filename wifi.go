@@ -215,8 +215,8 @@ type RateModulationInfo interface {
 	// NSS is the number of spatial streams.
 	GetNSS() int
 
-	// Description returns a human-readable description of the modulation.
-	// This will be in the format also used by iw.
+	// Description returns a human-readable description of the modulation info.
+	// Uses same format as iw tool, but not necessary in the same order.
 	Description() string
 }
 
@@ -246,28 +246,29 @@ func (r BaseModulationInfo) Description() string {
 type HTModulationInfo struct {
 	BaseModulationInfo
 	HT_MCS  int
-	ShortGi bool
+	ShortGI bool
 }
 
 // VHTModulationInfo represents modulation information for VHT rates.
 type VHTModulationInfo struct {
 	BaseModulationInfo
-	ShortGi bool
+	ShortGI bool
 }
 
 type HEModulationInfo struct {
 	BaseModulationInfo
-	Gi      int
+	GI      int
 	DCM     int
 	RUAlloc int
 }
 
 type EHTModulationInfo struct {
 	BaseModulationInfo
-	Gi      int
+	GI      int
 	RUAlloc int
 }
 
+// RateModulationInfoType indicates the type of modulation used for a rate.
 type RateModulationInfoType int
 
 const (
@@ -278,7 +279,7 @@ const (
 	RateModulationInfoTypeUNKNOWN
 )
 
-// rateInfo provides statistics about the receive or transmit rate of
+// rateInfo provides information about the receive or transmit rate of
 // an interface.
 type RateInfo struct {
 	// Bitrate in bits per second.
@@ -342,10 +343,10 @@ type StationInfo struct {
 	// The number of times a beacon loss was detected.
 	BeaconLoss int
 
-	// The current receive rate and modulation information.
+	// The current receive rate and detailed modulation information.
 	ReceiveRateInfo RateInfo
 
-	// The current transmit rate and modulation information.
+	// The current transmit rate and detailed modulation information.
 	TransmitRateInfo RateInfo
 }
 
