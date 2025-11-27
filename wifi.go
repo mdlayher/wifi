@@ -601,60 +601,6 @@ type InterfaceCombinationLimit struct {
 	Max int
 }
 
-// FrequencyToChannel returns the channel number given the frequency in MHz, as
-// defined by IEEE802.11-2007, 17.3.8.3.2 and Annex J.
-// func FrequencyToChannel(freq int) int {
-// 	if freq == 2484 {
-// 		return 14
-// 	} else if freq >= 2407 && freq < 2484 {
-// 		return (freq - 2407) / 5
-// 	} else if freq >= 4910 && freq <= 4980 {
-// 		return (freq - 4000) / 5
-// 	} else if freq <= 45000 {
-// 		return (freq - 5000) / 5
-// 	} else if freq >= 58320 && freq <= 64800 {
-// 		return (freq - 56160) / 2160
-// 	}
-// 	return 0
-// }
-
-// // Constants representing the standard WiFi frequency bands.
-
-// type WifiBands int
-
-// const (
-// 	Band2GHz WifiBands = iota
-// 	Band5GHz
-// 	Band60GHz
-// )
-
-// // ChannelToFrequency returns the frequency given the channel number and the
-// // band, as there are overlapping channel numbers between bands.
-// func ChannelToFrequency(channel int, band WifiBands) int {
-// 	if channel <= 0 {
-// 		return 0
-// 	}
-
-// 	switch band {
-// 	case Band2GHz:
-// 		if channel == 14 {
-// 			return 2484
-// 		} else if channel < 14 {
-// 			return 2407 + channel*5
-// 		}
-// 	case Band5GHz:
-// 		if channel >= 182 && channel <= 196 {
-// 			return 4000 + channel*5
-// 		}
-// 		return 5000 + channel*5
-// 	case Band60GHz:
-// 		if channel < 5 {
-// 			return 56160 + channel*2160
-// 		}
-// 	}
-// 	return 0
-// }
-
 // List of 802.11 Information Element types.
 const (
 	ieSSID    = 0
