@@ -249,10 +249,10 @@ func (r BaseModulationInfo) WifiGeneration() string {
 // MCS Indexes originally range from 0 to 31. NSS is coded in the MCS index as follows:
 // NSS = (MCS / 8) + 1
 // MCS = MCS % 8
-// original MCS index is available as HT_MCS
+// original MCS index is available as HTMCS
 type HTModulationInfo struct {
 	BaseModulationInfo
-	HT_MCS  int
+	HTMCS   int
 	ShortGI bool
 }
 

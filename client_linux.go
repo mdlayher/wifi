@@ -775,9 +775,8 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 func bitrateStr(bitrate int) string {
 	if bitrate > 0 {
 		return fmt.Sprintf("%d.%d MBit/s ", bitrate/10, bitrate%10)
-	} else {
-		return "(unknown)"
 	}
+	return "(unknown)"
 }
 
 // parseRateInfo parses a rateInfo from netlink attributes.
@@ -821,10 +820,10 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 				iwDescription += bitrateStr(rateinfo.Bitrate)
 			}
 		case unix.NL80211_RATE_INFO_MCS:
-			htModulationInfo.HT_MCS = int(nlenc.Uint8(a.Data))
-			htModulationInfo.MCS = htModulationInfo.HT_MCS % 8
-			htModulationInfo.NSS = (htModulationInfo.HT_MCS / 8) + 1
-			iwDescription += fmt.Sprintf(" MCS %d", htModulationInfo.HT_MCS)
+			htModulationInfo.HTMCS = int(nlenc.Uint8(a.Data))
+			htModulationInfo.MCS = htModulationInfo.HTMCS % 8
+			htModulationInfo.NSS = (htModulationInfo.HTMCS / 8) + 1
+			iwDescription += fmt.Sprintf(" MCS %d", htModulationInfo.HTMCS)
 		case unix.NL80211_RATE_INFO_VHT_MCS:
 			vhtModulationInfo.MCS = int(nlenc.Uint8(a.Data))
 			iwDescription += fmt.Sprintf(" VHT-MCS %d", vhtModulationInfo.MCS)
