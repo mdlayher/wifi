@@ -219,7 +219,7 @@ type RateModulationInfo interface {
 	// Uses same format as iw tool, but not necessary in the same order.
 	Description() string
 
-	// WifiGeneration returns the WiFi generation (e.g., "802.11n", "802.11ac", "802.11ax", "802.11be")
+	// WifiGeneration returns the WiFi generation (e.g., "802.11n (WiFi 4)", "802.11ac (WiFi 5)", "802.11ax (WiFi 6)", "802.11be (WiFi 7)")
 	WifiGeneration() string
 }
 
