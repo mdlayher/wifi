@@ -218,6 +218,9 @@ type RateModulationInfo interface {
 	// Description returns a human-readable description of the modulation info.
 	// Uses same format as iw tool, but not necessary in the same order.
 	Description() string
+
+	// WifiGeneration returns the WiFi generation (e.g., "802.11n", "802.11ac", "802.11ax", "802.11be")
+	WifiGeneration() string
 }
 
 type BaseModulationInfo struct {
@@ -238,6 +241,10 @@ func (r BaseModulationInfo) Description() string {
 	return r.IwDescription
 }
 
+func (r BaseModulationInfo) WifiGeneration() string {
+	return "unknown"
+}
+
 // HTModulationInfo represents modulation information for HT rates.
 // MCS Indexes originally range from 0 to 31. NSS is coded in the MCS index as follows:
 // NSS = (MCS / 8) + 1
@@ -249,10 +256,18 @@ type HTModulationInfo struct {
 	ShortGI bool
 }
 
+func (r HTModulationInfo) WifiGeneration() string {
+	return "802.11n (WiFi 4)"
+}
+
 // VHTModulationInfo represents modulation information for VHT rates.
 type VHTModulationInfo struct {
 	BaseModulationInfo
 	ShortGI bool
+}
+
+func (r VHTModulationInfo) WifiGeneration() string {
+	return "802.11ac (WiFi 5)"
 }
 
 type HEModulationInfo struct {
@@ -262,10 +277,18 @@ type HEModulationInfo struct {
 	RUAlloc int
 }
 
+func (r HEModulationInfo) WifiGeneration() string {
+	return "802.11ax (WiFi 6)"
+}
+
 type EHTModulationInfo struct {
 	BaseModulationInfo
 	GI      int
 	RUAlloc int
+}
+
+func (r EHTModulationInfo) WifiGeneration() string {
+	return "802.11be (WiFi 7)"
 }
 
 // RateModulationInfoType indicates the type of modulation used for a rate.
