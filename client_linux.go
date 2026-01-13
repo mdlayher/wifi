@@ -101,19 +101,6 @@ func (c *client) Interfaces() ([]*Interface, error) {
 	return ParseInterfaces(msgs)
 }
 
-// PHY requests that nl80211 return information for the physical device
-// specified by the index.
-func (c *client) PHY(n uint32) (*PHY, error) {
-	phys, err := c.getPHYs(&n)
-	if err != nil {
-		return nil, err
-	}
-	if len(phys) == 0 {
-		return nil, fmt.Errorf("no PHY with index %d", n)
-	}
-	return phys[0], nil
-}
-
 // PHYs requests that nl80211 return information for all wireless physical
 // devices.
 func (c *client) PHYs() ([]*PHY, error) {
