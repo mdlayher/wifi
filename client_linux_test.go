@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -288,6 +289,8 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			BeaconLoss:         3,
 			ReceiveBitrate:     130000000,
 			TransmitBitrate:    130000000,
+			ReceiveRateInfo:    RateInfo{Bitrate: 130000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2, IwDescription: "130.0 MBit/s 130.0 MBit/s  VHT-MCS 5 VHT-NSS 2 Short GI 80P80MHz"}, ShortGI: true}, ChannelWidth: ChannelWidth80P80},
+			TransmitRateInfo:   RateInfo{Bitrate: 130000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1, IwDescription: "130.0 MBit/s 130.0 MBit/s  VHT-MCS 3 VHT-NSS 1 Short GI 40MHz"}, ShortGI: true}, ChannelWidth: ChannelWidth40},
 		},
 		{
 			InterfaceIndex:     1,
@@ -304,7 +307,9 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			TransmitFailed:     4,
 			BeaconLoss:         6,
 			ReceiveBitrate:     260000000,
-			TransmitBitrate:    260000000,
+			TransmitBitrate:    240000000,
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  VHT-MCS 5 VHT-NSS 2 Short GI 80MHz"}, ShortGI: true}, ChannelWidth: ChannelWidth80},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  VHT-MCS 3 VHT-NSS 1 Short GI 160MHz"}, ShortGI: true}, ChannelWidth: ChannelWidth160},
 		},
 	}
 
@@ -488,6 +493,69 @@ func (b *BSS) attributes() []netlink.Attribute {
 	}
 }
 
+func modulationAttributes(rateInfo RateModulationInfo) (attr []netlink.Attribute) {
+	// attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.ReceiveBitrate)))})
+	// attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.ReceiveBitrate))})
+	switch ri := rateInfo.(type) {
+	case BaseModulationInfo:
+		//ri := rateInfo.(BaseModulationInfo)
+		// TODO
+	case HTModulationInfo:
+		//ri := rateInfo.(HTModulationInfo)
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_MCS, Data: nlenc.Uint8Bytes(uint8(ri.HTMCS))})
+		// TODO
+	case VHTModulationInfo:
+		//ri := rateInfo.(VHTModulationInfo)
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: nlenc.Uint8Bytes(uint8(ri.MCS))})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_NSS, Data: nlenc.Uint8Bytes(uint8(ri.NSS))})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_SHORT_GI})
+		// TODO
+	case HEModulationInfo:
+		// TODO
+	case EHTModulationInfo:
+		// TODO
+	default:
+		fmt.Printf("Could not type-switch %v \n", rateInfo)
+	}
+	return attr
+}
+
+func channelWithAttributes(cw ChannelWidth) (attr []netlink.Attribute) {
+	switch cw {
+	// case ChannelWidth20NoHT:
+	// 	return "20 MHz (no HT)"
+	// case ChannelWidth20:
+	// 	return "20 MHz"
+	case ChannelWidth40:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_40_MHZ_WIDTH}}
+	case ChannelWidth80:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_80_MHZ_WIDTH}}
+	case ChannelWidth80P80:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_80P80_MHZ_WIDTH}}
+	case ChannelWidth160:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_160_MHZ_WIDTH}}
+	case ChannelWidth5:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_5_MHZ_WIDTH}}
+	case ChannelWidth10:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_10_MHZ_WIDTH}}
+	case ChannelWidth1:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_1_MHZ_WIDTH}}
+	case ChannelWidth2:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_2_MHZ_WIDTH}}
+	case ChannelWidth4:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_4_MHZ_WIDTH}}
+	case ChannelWidth8:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_8_MHZ_WIDTH}}
+	case ChannelWidth16:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_16_MHZ_WIDTH}}
+	case ChannelWidth320:
+		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_320_MHZ_WIDTH}}
+	default:
+		return attr
+		//return fmt.Sprintf("unknown(%d)", t)
+	}
+}
+
 func (s *StationInfo) attributes() []netlink.Attribute {
 	return []netlink.Attribute{
 		// TODO(mdlayher): return more attributes for validation?
@@ -517,21 +585,25 @@ func (s *StationInfo) attributes() []netlink.Attribute {
 				{Type: unix.NL80211_STA_INFO_BEACON_LOSS, Data: nlenc.Uint32Bytes(uint32(s.BeaconLoss))},
 				{
 					Type: unix.NL80211_STA_INFO_RX_BITRATE,
-					Data: mustMarshalAttributes([]netlink.Attribute{
-						{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.ReceiveBitrate)))},
-						{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.ReceiveBitrate))},
-						// {Type: unix.NL80211_RATE_INFO_MCS, Data: nlenc.Uint8Bytes(uint8(s.RX_MCS))},
-						// {Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: nlenc.Uint8Bytes(uint8(s.RX_VHT_MCS))},
-					}),
+					Data: mustMarshalAttributes(slices.Concat(
+						[]netlink.Attribute{
+							{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.ReceiveBitrate)))},
+							{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.ReceiveBitrate))},
+						},
+						modulationAttributes(s.ReceiveRateInfo.Modulation),
+						channelWithAttributes(s.ReceiveRateInfo.ChannelWidth),
+					)),
 				},
 				{
 					Type: unix.NL80211_STA_INFO_TX_BITRATE,
-					Data: mustMarshalAttributes([]netlink.Attribute{
-						{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.TransmitBitrate)))},
-						{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.TransmitBitrate))},
-						// {Type: unix.NL80211_RATE_INFO_MCS, Data: nlenc.Uint8Bytes(uint8(s.TX_MCS))},
-						// {Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: nlenc.Uint8Bytes(uint8(s.TX_VHT_MCS))},
-					}),
+					Data: mustMarshalAttributes(slices.Concat(
+						[]netlink.Attribute{
+							{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.TransmitBitrate)))},
+							{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.TransmitBitrate))},
+						},
+						modulationAttributes(s.TransmitRateInfo.Modulation),
+						channelWithAttributes(s.TransmitRateInfo.ChannelWidth),
+					)),
 				},
 			}),
 		},

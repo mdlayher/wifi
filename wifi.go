@@ -229,19 +229,29 @@ type BaseModulationInfo struct {
 	IwDescription string
 }
 
-func (r BaseModulationInfo) GetMCS() int {
-	return r.MCS
+func (mi BaseModulationInfo) Equal(mi2 BaseModulationInfo) bool {
+	if mi.MCS != mi2.MCS {
+		return false
+	}
+	if mi.NSS != mi2.NSS {
+		return false
+	}
+	return true
 }
 
-func (r BaseModulationInfo) GetNSS() int {
-	return r.NSS
+func (mi BaseModulationInfo) GetMCS() int {
+	return mi.MCS
 }
 
-func (r BaseModulationInfo) Description() string {
-	return r.IwDescription
+func (mi BaseModulationInfo) GetNSS() int {
+	return mi.NSS
 }
 
-func (r BaseModulationInfo) WifiGeneration() string {
+func (mi BaseModulationInfo) Description() string {
+	return mi.IwDescription
+}
+
+func (mi BaseModulationInfo) WifiGeneration() string {
 	return "unknown"
 }
 
@@ -256,7 +266,23 @@ type HTModulationInfo struct {
 	ShortGI bool
 }
 
-func (r HTModulationInfo) WifiGeneration() string {
+func (mi HTModulationInfo) Equal(mi2 HTModulationInfo) bool {
+	if mi.MCS != mi2.MCS {
+		return false
+	}
+	if mi.NSS != mi2.NSS {
+		return false
+	}
+	if mi.HTMCS != mi2.HTMCS {
+		return false
+	}
+	if mi.ShortGI != mi2.ShortGI {
+		return false
+	}
+	return true
+}
+
+func (mi HTModulationInfo) WifiGeneration() string {
 	return "802.11n (WiFi 4)"
 }
 
@@ -266,7 +292,20 @@ type VHTModulationInfo struct {
 	ShortGI bool
 }
 
-func (r VHTModulationInfo) WifiGeneration() string {
+func (mi VHTModulationInfo) Equal(mi2 VHTModulationInfo) bool {
+	if mi.MCS != mi2.MCS {
+		return false
+	}
+	if mi.NSS != mi2.NSS {
+		return false
+	}
+	if mi.ShortGI != mi2.ShortGI {
+		return false
+	}
+	return true
+}
+
+func (mi VHTModulationInfo) WifiGeneration() string {
 	return "802.11ac (WiFi 5)"
 }
 
@@ -277,7 +316,7 @@ type HEModulationInfo struct {
 	RUAlloc int
 }
 
-func (r HEModulationInfo) WifiGeneration() string {
+func (mi HEModulationInfo) WifiGeneration() string {
 	return "802.11ax (WiFi 6)"
 }
 
@@ -287,7 +326,7 @@ type EHTModulationInfo struct {
 	RUAlloc int
 }
 
-func (r EHTModulationInfo) WifiGeneration() string {
+func (mi EHTModulationInfo) WifiGeneration() string {
 	return "802.11be (WiFi 7)"
 }
 
