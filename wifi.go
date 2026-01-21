@@ -229,16 +229,6 @@ type BaseModulationInfo struct {
 	IwDescription string
 }
 
-func (mi BaseModulationInfo) Equal(mi2 BaseModulationInfo) bool {
-	if mi.MCS != mi2.MCS {
-		return false
-	}
-	if mi.NSS != mi2.NSS {
-		return false
-	}
-	return true
-}
-
 func (mi BaseModulationInfo) GetMCS() int {
 	return mi.MCS
 }
@@ -266,22 +256,6 @@ type HTModulationInfo struct {
 	ShortGI bool
 }
 
-func (mi HTModulationInfo) Equal(mi2 HTModulationInfo) bool {
-	if mi.MCS != mi2.MCS {
-		return false
-	}
-	if mi.NSS != mi2.NSS {
-		return false
-	}
-	if mi.HTMCS != mi2.HTMCS {
-		return false
-	}
-	if mi.ShortGI != mi2.ShortGI {
-		return false
-	}
-	return true
-}
-
 func (mi HTModulationInfo) WifiGeneration() string {
 	return "802.11n (WiFi 4)"
 }
@@ -290,19 +264,6 @@ func (mi HTModulationInfo) WifiGeneration() string {
 type VHTModulationInfo struct {
 	BaseModulationInfo
 	ShortGI bool
-}
-
-func (mi VHTModulationInfo) Equal(mi2 VHTModulationInfo) bool {
-	if mi.MCS != mi2.MCS {
-		return false
-	}
-	if mi.NSS != mi2.NSS {
-		return false
-	}
-	if mi.ShortGI != mi2.ShortGI {
-		return false
-	}
-	return true
 }
 
 func (mi VHTModulationInfo) WifiGeneration() string {
