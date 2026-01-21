@@ -851,6 +851,9 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 		case unix.NL80211_RATE_INFO_4_MHZ_WIDTH:
 			channelWidth = ChannelWidth4
 			iwDescription += " 4MHz"
+		case unix.NL80211_RATE_INFO_8_MHZ_WIDTH:
+			channelWidth = ChannelWidth8
+			iwDescription += " 8MHz"
 		case unix.NL80211_RATE_INFO_16_MHZ_WIDTH:
 			channelWidth = ChannelWidth16
 			iwDescription += " 16MHz"

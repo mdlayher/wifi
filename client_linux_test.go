@@ -349,6 +349,44 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  MCS 14 Short GI 16MHz"}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth16},
 			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  MCS 7 4MHz"}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth4},
 		},
+		{
+			InterfaceIndex:     3,
+			HardwareAddr:       net.HardwareAddr{0x40, 0xa5, 0xef, 0xd9, 0x96, 0x6f},
+			Connected:          40 * time.Minute,
+			Inactive:           5 * time.Millisecond,
+			ReceivedBytes:      5000,
+			TransmittedBytes:   2000,
+			ReceivedPackets:    20,
+			TransmittedPackets: 40,
+			Signal:             -25,
+			SignalAverage:      -27,
+			TransmitRetries:    10,
+			TransmitFailed:     4,
+			BeaconLoss:         6,
+			ReceiveBitrate:     260000000,
+			TransmitBitrate:    240000000,
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  MCS 14 Short GI 1MHz"}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth1},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  MCS 7 2MHz"}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth2},
+		},
+		{
+			InterfaceIndex:     3,
+			HardwareAddr:       net.HardwareAddr{0x40, 0xa5, 0xef, 0xd9, 0x96, 0x6f},
+			Connected:          40 * time.Minute,
+			Inactive:           5 * time.Millisecond,
+			ReceivedBytes:      5000,
+			TransmittedBytes:   2000,
+			ReceivedPackets:    20,
+			TransmittedPackets: 40,
+			Signal:             -25,
+			SignalAverage:      -27,
+			TransmitRetries:    10,
+			TransmitFailed:     4,
+			BeaconLoss:         6,
+			ReceiveBitrate:     260000000,
+			TransmitBitrate:    240000000,
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  MCS 14 Short GI 8MHz"}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth8},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  MCS 7 8MHz"}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth8},
+		},
 	}
 
 	ifi := &Interface{
@@ -570,9 +608,7 @@ func modulationAttributes(rateInfo RateModulationInfo) (attr []netlink.Attribute
 func channelWithAttributes(cw ChannelWidth) (attr []netlink.Attribute) {
 	switch cw {
 	// case ChannelWidth20NoHT:
-	// 	return "20 MHz (no HT)"
 	// case ChannelWidth20:
-	// 	return "20 MHz"
 	case ChannelWidth40:
 		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_40_MHZ_WIDTH}}
 	case ChannelWidth80:
@@ -599,7 +635,6 @@ func channelWithAttributes(cw ChannelWidth) (attr []netlink.Attribute) {
 		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_320_MHZ_WIDTH}}
 	default:
 		return attr
-		//return fmt.Sprintf("unknown(%d)", t)
 	}
 }
 
