@@ -481,3 +481,25 @@ func TestRSNErrorHierarchy(t *testing.T) {
 		}
 	})
 }
+
+func TestRateInfo_GenerationString(t *testing.T) {
+	tests := []struct {
+		name       string
+		modulation RateModulationInfo
+		want       string
+	}{
+		{"Basic", BaseModulationInfo{}, "unknown"},
+		{"HT", HTModulationInfo{}, "802.11n (WiFi 4)"},
+		{"VHT", VHTModulationInfo{}, "802.11ac (WiFi 5)"},
+		{"HE", HEModulationInfo{}, "802.11ax (WiFi 6)"},
+		{"EHT", EHTModulationInfo{}, "802.11be (WiFi 7)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.modulation.WifiGeneration(); got != tt.want {
+				t.Errorf("RateModulationInfo.WifiGeneration() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
