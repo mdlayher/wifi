@@ -53,6 +53,9 @@ func (c *Client) BSS(ifi *Interface) (*BSS, error) {
 	return c.c.BSS(ifi)
 }
 
+// PHYs returns a list of the system's WiFi devices.
+func (c *Client) PHYs() ([]*PHY, error) { return c.c.PHYs() }
+
 // AccessPoints retrieves the currently known BSS around the specified Interface.
 func (c *Client) AccessPoints(ifi *Interface) ([]*BSS, error) {
 	return c.c.AccessPoints(ifi)
