@@ -208,6 +208,116 @@ type Interface struct {
 	ChannelWidth ChannelWidth
 }
 
+type RateModulationInfo interface {
+	// MCS is the modulation and coding scheme index.
+	GetMCS() int
+
+	// NSS is the number of spatial streams.
+	GetNSS() int
+
+	// Description returns a human-readable description of the modulation info.
+	// Uses same format as iw tool, but not necessary in the same order.
+	Description() string
+
+	// WifiGeneration returns the WiFi generation (e.g., "802.11n (WiFi 4)", "802.11ac (WiFi 5)", "802.11ax (WiFi 6)", "802.11be (WiFi 7)")
+	WifiGeneration() string
+}
+
+type BaseModulationInfo struct {
+	MCS           int
+	NSS           int
+	IwDescription string
+}
+
+func (mi BaseModulationInfo) GetMCS() int {
+	return mi.MCS
+}
+
+func (mi BaseModulationInfo) GetNSS() int {
+	return mi.NSS
+}
+
+func (mi BaseModulationInfo) Description() string {
+	return mi.IwDescription
+}
+
+func (mi BaseModulationInfo) WifiGeneration() string {
+	return "unknown"
+}
+
+// HTModulationInfo represents modulation information for HT rates.
+// MCS Indexes originally range from 0 to 31. NSS is coded in the MCS index as follows:
+// NSS = (MCS / 8) + 1
+// MCS = MCS % 8
+// original MCS index is available as HTMCS
+type HTModulationInfo struct {
+	BaseModulationInfo
+	HTMCS   int
+	ShortGI bool
+}
+
+func (mi HTModulationInfo) WifiGeneration() string {
+	return "802.11n (WiFi 4)"
+}
+
+// VHTModulationInfo represents modulation information for VHT rates.
+type VHTModulationInfo struct {
+	BaseModulationInfo
+	ShortGI bool
+}
+
+func (mi VHTModulationInfo) WifiGeneration() string {
+	return "802.11ac (WiFi 5)"
+}
+
+type HEModulationInfo struct {
+	BaseModulationInfo
+	GI      int
+	DCM     int
+	RUAlloc int
+}
+
+func (mi HEModulationInfo) WifiGeneration() string {
+	return "802.11ax (WiFi 6)"
+}
+
+type EHTModulationInfo struct {
+	BaseModulationInfo
+	GI      int
+	RUAlloc int
+}
+
+func (mi EHTModulationInfo) WifiGeneration() string {
+	return "802.11be (WiFi 7)"
+}
+
+// RateModulationInfoType indicates the type of modulation used for a rate.
+type RateModulationInfoType int
+
+const (
+	RateModulationInfoTypeHT RateModulationInfoType = iota
+	RateModulationInfoTypeVHT
+	RateModulationInfoTypeHE
+	RateModulationInfoTypeEHT
+	RateModulationInfoTypeUNKNOWN
+)
+
+// rateInfo provides information about the receive or transmit rate of
+// an interface.
+type RateInfo struct {
+	// Bitrate in bits per second.
+	Bitrate int
+
+	// The type of modulation used. Can also be inferred from Modulation.(type)
+	ModulationType RateModulationInfoType
+
+	// Modulation information.
+	Modulation RateModulationInfo
+
+	// Channel width used for this rate.
+	ChannelWidth ChannelWidth
+}
+
 // StationInfo contains statistics about a WiFi interface operating in
 // station mode.
 type StationInfo struct {
@@ -255,6 +365,12 @@ type StationInfo struct {
 
 	// The number of times a beacon loss was detected.
 	BeaconLoss int
+
+	// The current receive rate and detailed modulation information.
+	ReceiveRateInfo RateInfo
+
+	// The current transmit rate and detailed modulation information.
+	TransmitRateInfo RateInfo
 }
 
 // BSSLoad is an Information Element containing measurements of the load on the BSS.

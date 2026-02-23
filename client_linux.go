@@ -8,6 +8,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -750,8 +751,10 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 			switch a.Type {
 			case unix.NL80211_STA_INFO_RX_BITRATE:
 				info.ReceiveBitrate = rate.Bitrate
+				info.ReceiveRateInfo = *rate
 			case unix.NL80211_STA_INFO_TX_BITRATE:
 				info.TransmitBitrate = rate.Bitrate
+				info.TransmitRateInfo = *rate
 			}
 		}
 
@@ -769,40 +772,159 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 	return nil
 }
 
-// rateInfo provides statistics about the receive or transmit rate of
-// an interface.
-type rateInfo struct {
-	// Bitrate in bits per second.
-	Bitrate int
+func bitrateStr(bitrate int) string {
+	if bitrate > 0 {
+		return fmt.Sprintf("%d.%d MBit/s ", bitrate/10, bitrate%10)
+	}
+	return "(unknown)"
 }
 
 // parseRateInfo parses a rateInfo from netlink attributes.
-func parseRateInfo(b []byte) (*rateInfo, error) {
+func parseRateInfo(b []byte) (*RateInfo, error) {
 	attrs, err := netlink.UnmarshalAttributes(b)
 	if err != nil {
 		return nil, err
 	}
 
-	var info rateInfo
+	var rateinfo RateInfo
+	// initialize with unknown values
+	htModulationInfo := HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+	vhtModulationInfo := VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+	heModulationInfo := HEModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+	ehtModulationInfo := EHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
+
+	// build the string seperately and assign at the end
+	var iwDescription string
+	iwDescription = ""
+	// shortGi := false
+
+	// re-use Channel Width type from Interface, even though we classify via NL80211_RATE_INFO_*
+	// strings are done manually do keep comaptibility with iw
+	var channelWidth ChannelWidth
+
 	for _, a := range attrs {
+		// see iw's station.c for reference implementation
+		// serach for parse_bitrate(struct nlattr *bitrate_attr, char *buf, int buflen)
+		// at the moment of implementation iw v6.17 was used:
+		// https://git.kernel.org/pub/scm/linux/kernel/git/jberg/iw.git/tree/station.c?h=v6.17#n199
 		switch a.Type {
 		case unix.NL80211_RATE_INFO_BITRATE32:
-			info.Bitrate = int(nlenc.Uint32(a.Data))
-		}
-
-		// Only use 16-bit counters if the 32-bit counters are not present.
-		// If the 32-bit counters appear later in the slice, they will overwrite
-		// these values.
-		if info.Bitrate == 0 && a.Type == unix.NL80211_RATE_INFO_BITRATE {
-			info.Bitrate = int(nlenc.Uint16(a.Data))
+			rateinfo.Bitrate = int(nlenc.Uint32(a.Data))
+			iwDescription += bitrateStr(rateinfo.Bitrate)
+		case unix.NL80211_RATE_INFO_BITRATE:
+			// Only use 16-bit counters if the 32-bit counters are not present.
+			// If the 32-bit counters appear later in the slice, they will overwrite
+			// these values.
+			if rateinfo.Bitrate == 0 {
+				rateinfo.Bitrate = int(nlenc.Uint16(a.Data))
+				iwDescription += bitrateStr(rateinfo.Bitrate)
+			}
+		case unix.NL80211_RATE_INFO_MCS:
+			htModulationInfo.HTMCS = int(nlenc.Uint8(a.Data))
+			htModulationInfo.MCS = htModulationInfo.HTMCS % 8
+			htModulationInfo.NSS = (htModulationInfo.HTMCS / 8) + 1
+			iwDescription += fmt.Sprintf(" MCS %d", htModulationInfo.HTMCS)
+		case unix.NL80211_RATE_INFO_VHT_MCS:
+			vhtModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" VHT-MCS %d", vhtModulationInfo.MCS)
+		case unix.NL80211_RATE_INFO_40_MHZ_WIDTH:
+			channelWidth = ChannelWidth40
+			iwDescription += " 40MHz"
+		case unix.NL80211_RATE_INFO_80_MHZ_WIDTH:
+			channelWidth = ChannelWidth80
+			iwDescription += " 80MHz"
+		case unix.NL80211_RATE_INFO_80P80_MHZ_WIDTH:
+			channelWidth = ChannelWidth80P80
+			iwDescription += " 80P80MHz"
+		case unix.NL80211_RATE_INFO_160_MHZ_WIDTH:
+			channelWidth = ChannelWidth160
+			iwDescription += " 160MHz"
+		case unix.NL80211_RATE_INFO_320_MHZ_WIDTH:
+			channelWidth = ChannelWidth320
+			iwDescription += " 320MHz"
+		case unix.NL80211_RATE_INFO_1_MHZ_WIDTH:
+			channelWidth = ChannelWidth1
+			iwDescription += " 1MHz"
+		case unix.NL80211_RATE_INFO_2_MHZ_WIDTH:
+			channelWidth = ChannelWidth2
+			iwDescription += " 2MHz"
+		case unix.NL80211_RATE_INFO_4_MHZ_WIDTH:
+			channelWidth = ChannelWidth4
+			iwDescription += " 4MHz"
+		case unix.NL80211_RATE_INFO_8_MHZ_WIDTH:
+			channelWidth = ChannelWidth8
+			iwDescription += " 8MHz"
+		case unix.NL80211_RATE_INFO_16_MHZ_WIDTH:
+			channelWidth = ChannelWidth16
+			iwDescription += " 16MHz"
+		case unix.NL80211_RATE_INFO_SHORT_GI:
+			htModulationInfo.ShortGI = true
+			vhtModulationInfo.ShortGI = true
+			iwDescription += " Short GI"
+		case unix.NL80211_RATE_INFO_VHT_NSS:
+			vhtModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" VHT-NSS %d", vhtModulationInfo.NSS)
+		case unix.NL80211_RATE_INFO_HE_MCS:
+			heModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-MCS %d", heModulationInfo.MCS)
+		case unix.NL80211_RATE_INFO_HE_NSS:
+			heModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-NSS %d", heModulationInfo.NSS)
+		case unix.NL80211_RATE_INFO_HE_GI:
+			heModulationInfo.GI = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-GI %d", heModulationInfo.GI)
+		case unix.NL80211_RATE_INFO_HE_DCM:
+			heModulationInfo.DCM = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-DCM %d", heModulationInfo.DCM)
+		case unix.NL80211_RATE_INFO_HE_RU_ALLOC:
+			heModulationInfo.RUAlloc = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" HE-RU-ALLOC %d", heModulationInfo.RUAlloc)
+		case unix.NL80211_RATE_INFO_EHT_MCS:
+			ehtModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-MCS %d", ehtModulationInfo.MCS)
+		case unix.NL80211_RATE_INFO_EHT_NSS:
+			ehtModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-NSS %d", ehtModulationInfo.NSS)
+		case unix.NL80211_RATE_INFO_EHT_GI:
+			ehtModulationInfo.GI = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-GI %d", ehtModulationInfo.GI)
+		case unix.NL80211_RATE_INFO_EHT_RU_ALLOC:
+			ehtModulationInfo.RUAlloc = int(nlenc.Uint8(a.Data))
+			iwDescription += fmt.Sprintf(" EHT-RU-ALLOC %d", ehtModulationInfo.RUAlloc)
 		}
 	}
 
+	// Assign modulation info based on what was found
+	// highest WiFi standard with valid MCS found determines modulation type
+	switch {
+	case ehtModulationInfo.MCS != -1:
+		rateinfo.ModulationType = RateModulationInfoTypeEHT
+		ehtModulationInfo.IwDescription = iwDescription
+		rateinfo.Modulation = ehtModulationInfo
+	case heModulationInfo.MCS != -1:
+		rateinfo.ModulationType = RateModulationInfoTypeHE
+		heModulationInfo.IwDescription = iwDescription
+		rateinfo.Modulation = heModulationInfo
+	case vhtModulationInfo.MCS != -1:
+		rateinfo.ModulationType = RateModulationInfoTypeVHT
+		vhtModulationInfo.IwDescription = iwDescription
+		rateinfo.Modulation = vhtModulationInfo
+	case htModulationInfo.MCS != -1:
+		rateinfo.ModulationType = RateModulationInfoTypeHT
+		htModulationInfo.IwDescription = iwDescription
+		rateinfo.Modulation = htModulationInfo
+	default:
+		rateinfo.ModulationType = RateModulationInfoTypeUNKNOWN
+		rateinfo.Modulation = nil
+	}
+
+	rateinfo.ChannelWidth = channelWidth
+
 	// Scale bitrate to bits/second as base unit instead of 100kbits/second.
 	// * @NL80211_RATE_INFO_BITRATE: total bitrate (u16, 100kbit/s)
-	info.Bitrate *= 100 * 1000
+	rateinfo.Bitrate *= 100 * 1000
 
-	return &info, nil
+	return &rateinfo, nil
 }
 
 // parseSurveyInfo parses a single SurveyInfo from a byte slice of netlink
