@@ -268,7 +268,7 @@ type BSSLoad struct {
 	// ChannelUtilization: Percentage of time (linearly scaled 0 to 255) that the AP sensed the medium was busy. Calculated only for the primary channel.
 	ChannelUtilization uint8
 
-	// AvailableAdmissionCapacity: remaining amount of medium time availible via explicit admission controll in units of 32 us/s.
+	// AvailableAdmissionCapacity: remaining amount of medium time available via explicit admission control in units of 32 us/s.
 	AvailableAdmissionCapacity uint16
 }
 
