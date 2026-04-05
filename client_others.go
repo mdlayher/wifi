@@ -31,3 +31,5 @@ func (*client) ConnectWPAPSK(_ *Interface, _, _ string) error    { return errUni
 func (*client) SetDeadline(t time.Time) error                    { return errUnimplemented }
 func (*client) SetReadDeadline(t time.Time) error                { return errUnimplemented }
 func (*client) SetWriteDeadline(t time.Time) error               { return errUnimplemented }
+func (*client) SetRegulatoryRegion(_ string) error               { return errUnimplemented }
+func (*client) ReloadRegulatoryDatabase() error                  { return errUnimplemented }

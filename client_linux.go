@@ -372,6 +372,42 @@ func (c *client) SetWriteDeadline(t time.Time) error {
 	return c.c.SetWriteDeadline(t)
 }
 
+// ReloadRegulatoryDatabase reloads the wireless regulatory database.
+//
+// This can be used if cfg80211 was built into the kernel and the wireless regulatory database
+// was not available during early boot.
+//
+// See https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/wireless-regdb.html
+func (c *client) ReloadRegulatoryDatabase() error {
+	_, err := c.get(
+		unix.NL80211_CMD_RELOAD_REGDB,
+		netlink.Acknowledge,
+		nil,
+		nil,
+	)
+
+	return err
+}
+
+// SetRegulatoryRegion sets the system-wide regulatory region used by all nl80211 devices.
+// You may need to call [client.ReloadRegulatoryDatabase] first to ensure the region is updated correctly.
+//
+// region must be an ISO 3166-1 alpha-2 country code (e.g. "GB" or "US").
+//
+// See https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/wireless-regdb.html
+func (c *client) SetRegulatoryRegion(region string) error {
+	_, err := c.get(
+		unix.NL80211_CMD_REQ_SET_REG,
+		netlink.Acknowledge,
+		nil,
+		func(ae *netlink.AttributeEncoder) {
+			ae.String(unix.NL80211_ATTR_REG_ALPHA2, region)
+		},
+	)
+
+	return err
+}
+
 // get performs a request/response interaction with nl80211.
 func (c *client) get(
 	cmd uint8,
