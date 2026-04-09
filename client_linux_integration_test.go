@@ -194,7 +194,7 @@ func TestClient_GetRegulatoryDomain(t *testing.T) {
 		t.Fatalf("failed to retrieve regulatory domain")
 	}
 
-	// At a minimu, the region will be 00.
+	// At a minimum, the region will be 00.
 	if len(domain.Region) != 2 {
 		t.Fatalf("failed to retrieve regulatory domain region")
 	}
