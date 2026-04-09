@@ -101,12 +101,19 @@ func (c *Client) ReloadRegulatoryDatabase() error {
 	return c.c.ReloadRegulatoryDatabase()
 }
 
+// GetRegulatoryRegion gets the system-wide regulatory domain.
+// See https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/wireless-regdb.html
+func (c *Client) GetRegulatoryDomain() (*RegulatoryDomain, error) {
+	return c.c.GetRegulatoryDomain()
+}
+
 // SetRegulatoryRegion sets the system-wide regulatory region used by all nl80211 devices.
 // You may need to call [Client.ReloadRegulatoryDatabase] first to ensure the region is updated correctly.
 //
 // region must be an ISO 3166-1 alpha-2 country code (e.g. "GB" or "US").
+// hint should almost always be [RegulatoryHintUser].
 //
 // See https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/wireless-regdb.html
-func (c *Client) SetRegulatoryRegion(region string) error {
-	return c.c.SetRegulatoryRegion(region)
+func (c *Client) SetRegulatoryRegion(region string, hint RegulatoryHint) error {
+	return c.c.SetRegulatoryRegion(region, hint)
 }

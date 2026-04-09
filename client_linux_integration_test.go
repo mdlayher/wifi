@@ -150,3 +150,52 @@ func TestClient_AccessPoints(t *testing.T) {
 
 	}
 }
+
+func TestClient_ReloadRegulatoryDatabase(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skipf("skipping, must be run as root")
+	}
+
+	c, err := wifi.New()
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	err = c.ReloadRegulatoryDatabase()
+	if err != nil {
+		t.Fatalf("failed to reload the regulatory database")
+	}
+}
+
+func TestClient_SetRegulatoryRegion(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skipf("skipping, must be run as root")
+	}
+
+	c, err := wifi.New()
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	err = c.SetRegulatoryRegion("00", wifi.RegulatoryHintUser)
+	if err != nil {
+		t.Fatalf("failed to set the regulatory domain")
+	}
+}
+
+func TestClient_GetRegulatoryDomain(t *testing.T) {
+	c, err := wifi.New()
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	domain, err := c.GetRegulatoryDomain()
+	if err != nil {
+		t.Fatalf("failed to retrieve regulatory domain")
+	}
+
+	// At a minimu, the region will be 00.
+	if len(domain.Region) != 2 {
+		t.Fatalf("failed to retrieve regulatory domain region")
+	}
+}
