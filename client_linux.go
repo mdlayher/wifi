@@ -415,7 +415,7 @@ func (c *client) GetRegulatoryDomain() (*RegulatoryDomain, error) {
 	}
 
 	var domain RegulatoryDomain
-	if err := (&domain).parseAttributes(attrs); err != nil {
+	if err := domain.parseAttributes(attrs); err != nil {
 		return nil, err
 	}
 
