@@ -184,6 +184,10 @@ func TestClient_SetRegulatoryRegion(t *testing.T) {
 }
 
 func TestClient_GetRegulatoryDomain(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skipf("skipping, must be run as root")
+	}
+
 	c, err := wifi.New()
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
