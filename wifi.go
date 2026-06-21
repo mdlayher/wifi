@@ -615,3 +615,20 @@ func (r RSNInfo) String() string {
 		"RSN v%d  Group:%s  Pairwise:%v  AKM:%v",
 		r.Version, r.GroupCipher.String(), pairwiseNames, akmNames)
 }
+
+// RegulatoryDomain contains information about the regulatory domain the device or system operates in.
+type RegulatoryDomain struct {
+	Region string // ISO 3166-1 alpha-2 country code
+}
+
+// RegulatoryHint describes why the regulatory region is being set.
+// See:
+// - https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/processing_rules.html#cellular-base-station-regulatory-hints
+// - https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/nl80211.h?h=a55f7f5f29b32c2c53cc291899cf9b0c25a07f7c#n4803
+type RegulatoryHint uint32
+
+const (
+	RegulatoryHintUser     RegulatoryHint = 0x0 // Set by the userspace (default)
+	RegulatoryHintCellBase RegulatoryHint = 0x1 // Set based on cellular network information
+	RegulatoryHintIndoor   RegulatoryHint = 0x2 // Set because the device is indoors
+)

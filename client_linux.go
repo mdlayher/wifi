@@ -372,6 +372,76 @@ func (c *client) SetWriteDeadline(t time.Time) error {
 	return c.c.SetWriteDeadline(t)
 }
 
+// ReloadRegulatoryDatabase reloads the wireless regulatory database.
+//
+// This can be used if cfg80211 was built into the kernel and the wireless regulatory database
+// was not available during early boot.
+//
+// See https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/wireless-regdb.html
+func (c *client) ReloadRegulatoryDatabase() error {
+	_, err := c.get(
+		unix.NL80211_CMD_RELOAD_REGDB,
+		netlink.Acknowledge,
+		nil,
+		nil,
+	)
+
+	return err
+}
+
+// GetRegulatoryDomain gets the system-wide regulatory region used by all nl80211 devices.
+// See
+// - https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/wireless-regdb.html
+// - https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/net/wireless/nl80211.c?h=a55f7f5f29b32c2c53cc291899cf9b0c25a07f7c#n9920
+func (c *client) GetRegulatoryDomain() (*RegulatoryDomain, error) {
+	msgs, err := c.get(
+		unix.NL80211_CMD_GET_REG,
+		netlink.Request,
+		nil,
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// We expect one message which represents the global regulatory domain.
+	if len(msgs) == 0 {
+		return nil, os.ErrNotExist
+	}
+
+	attrs, err := netlink.UnmarshalAttributes(msgs[0].Data)
+	if err != nil {
+		return nil, err
+	}
+
+	var domain RegulatoryDomain
+	if err := domain.parseAttributes(attrs); err != nil {
+		return nil, err
+	}
+
+	return &domain, nil
+}
+
+// SetRegulatoryRegion sets the system-wide regulatory region used by all nl80211 devices.
+// You may need to call [client.ReloadRegulatoryDatabase] first to ensure the region is updated correctly.
+//
+// region must be an ISO 3166-1 alpha-2 country code (e.g. "GB" or "US").
+//
+// See https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/wireless-regdb.html
+func (c *client) SetRegulatoryRegion(region string, hint RegulatoryHint) error {
+	_, err := c.get(
+		unix.NL80211_CMD_REQ_SET_REG,
+		netlink.Acknowledge,
+		nil,
+		func(ae *netlink.AttributeEncoder) {
+			ae.String(unix.NL80211_ATTR_REG_ALPHA2, region)
+			ae.Uint32(unix.NL80211_ATTR_USER_REG_HINT_TYPE, uint32(hint))
+		},
+	)
+
+	return err
+}
+
 // get performs a request/response interaction with nl80211.
 func (c *client) get(
 	cmd uint8,
@@ -1062,4 +1132,16 @@ found:
 	}
 
 	return (features[feature/8]&(1<<(feature%8)) != 0), nil
+}
+
+// parseAttributes parses netlink attributes into a RegulatoryDomain's fields.
+func (d *RegulatoryDomain) parseAttributes(attrs []netlink.Attribute) error {
+	for _, a := range attrs {
+		switch a.Type {
+		case unix.NL80211_ATTR_REG_ALPHA2:
+			d.Region = nlenc.String(a.Data)
+		}
+	}
+
+	return nil
 }
