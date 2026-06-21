@@ -629,23 +629,23 @@ func (ifi *Interface) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_ATTR_IFINDEX:
-			ifi.Index = int(nlenc.Uint32(a.Data))
+			ifi.Index = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_ATTR_IFNAME:
 			ifi.Name = nlenc.String(a.Data)
 		case unix.NL80211_ATTR_MAC:
 			ifi.HardwareAddr = net.HardwareAddr(a.Data)
 		case unix.NL80211_ATTR_WIPHY:
-			ifi.PHY = int(nlenc.Uint32(a.Data))
+			ifi.PHY = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_ATTR_IFTYPE:
 			// NOTE: InterfaceType copies the ordering of nl80211's interface type
 			// constants.  This may not be the case on other operating systems.
-			ifi.Type = InterfaceType(nlenc.Uint32(a.Data))
+			ifi.Type = InterfaceType(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_ATTR_WDEV:
-			ifi.Device = int(nlenc.Uint64(a.Data))
+			ifi.Device = int(binary.NativeEndian.Uint64(a.Data))
 		case unix.NL80211_ATTR_WIPHY_FREQ:
-			ifi.Frequency = int(nlenc.Uint32(a.Data))
+			ifi.Frequency = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_ATTR_CHANNEL_WIDTH:
-			ifi.ChannelWidth = ChannelWidth(nlenc.Uint32(a.Data))
+			ifi.ChannelWidth = ChannelWidth(binary.NativeEndian.Uint32(a.Data))
 		}
 	}
 
@@ -695,24 +695,24 @@ func (b *BSS) parseAttributes(attrs []netlink.Attribute) error {
 		case unix.NL80211_BSS_BSSID:
 			b.BSSID = net.HardwareAddr(a.Data)
 		case unix.NL80211_BSS_FREQUENCY:
-			b.Frequency = int(nlenc.Uint32(a.Data))
+			b.Frequency = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_BSS_BEACON_INTERVAL:
 			// Raw value is in "Time Units (TU)".  See:
 			// https://en.wikipedia.org/wiki/Beacon_frame
-			b.BeaconInterval = time.Duration(nlenc.Uint16(a.Data)) * 1024 * time.Microsecond
+			b.BeaconInterval = time.Duration(binary.NativeEndian.Uint16(a.Data)) * 1024 * time.Microsecond
 		case unix.NL80211_BSS_SEEN_MS_AGO:
 			// * @NL80211_BSS_SEEN_MS_AGO: age of this BSS entry in ms
-			b.LastSeen = time.Duration(nlenc.Uint32(a.Data)) * time.Millisecond
+			b.LastSeen = time.Duration(binary.NativeEndian.Uint32(a.Data)) * time.Millisecond
 		case unix.NL80211_BSS_STATUS:
 			// NOTE: BSSStatus copies the ordering of nl80211's BSS status
 			// constants.  This may not be the case on other operating systems.
-			b.Status = BSSStatus(nlenc.Uint32(a.Data))
+			b.Status = BSSStatus(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_BSS_SIGNAL_MBM:
 			// * @NL80211_BSS_SIGNAL_MBM: signal strength in mBm (100*dBm)
-			b.Signal = nlenc.Int32(a.Data)
+			b.Signal = int32(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_BSS_SIGNAL_UNSPEC:
 			// * @NL80211_BSS_SIGNAL_UNSPEC: signal strength in unspecified units (usually percent)
-			b.SignalUnspecified = nlenc.Uint32(a.Data)
+			b.SignalUnspecified = binary.NativeEndian.Uint32(a.Data)
 		case unix.NL80211_BSS_INFORMATION_ELEMENTS:
 			ies, err := parseIEs(a.Data)
 			if err != nil {
@@ -756,7 +756,7 @@ func ParseStationInfo(b []byte) (*StationInfo, error) {
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_ATTR_IFINDEX:
-			info.InterfaceIndex = int(nlenc.Uint32(a.Data))
+			info.InterfaceIndex = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_ATTR_MAC:
 			info.HardwareAddr = net.HardwareAddr(a.Data)
 		case unix.NL80211_ATTR_STA_INFO:
@@ -785,14 +785,14 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 		case unix.NL80211_STA_INFO_CONNECTED_TIME:
 			// Though nl80211 does not specify, this value appears to be in seconds:
 			// * @NL80211_STA_INFO_CONNECTED_TIME: time since the station is last connected
-			info.Connected = time.Duration(nlenc.Uint32(a.Data)) * time.Second
+			info.Connected = time.Duration(binary.NativeEndian.Uint32(a.Data)) * time.Second
 		case unix.NL80211_STA_INFO_INACTIVE_TIME:
 			// * @NL80211_STA_INFO_INACTIVE_TIME: time since last activity (u32, msecs)
-			info.Inactive = time.Duration(nlenc.Uint32(a.Data)) * time.Millisecond
+			info.Inactive = time.Duration(binary.NativeEndian.Uint32(a.Data)) * time.Millisecond
 		case unix.NL80211_STA_INFO_RX_BYTES64:
-			info.ReceivedBytes = int(nlenc.Uint64(a.Data))
+			info.ReceivedBytes = int(binary.NativeEndian.Uint64(a.Data))
 		case unix.NL80211_STA_INFO_TX_BYTES64:
-			info.TransmittedBytes = int(nlenc.Uint64(a.Data))
+			info.TransmittedBytes = int(binary.NativeEndian.Uint64(a.Data))
 		case unix.NL80211_STA_INFO_SIGNAL:
 			//  * @NL80211_STA_INFO_SIGNAL: signal strength of last received PPDU (u8, dBm)
 			// Should just be cast to int8, see code here: https://git.kernel.org/pub/scm/linux/kernel/git/jberg/iw.git/tree/station.c#n378
@@ -800,15 +800,15 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 		case unix.NL80211_STA_INFO_SIGNAL_AVG:
 			info.SignalAverage = int(int8(a.Data[0]))
 		case unix.NL80211_STA_INFO_RX_PACKETS:
-			info.ReceivedPackets = int(nlenc.Uint32(a.Data))
+			info.ReceivedPackets = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_STA_INFO_TX_PACKETS:
-			info.TransmittedPackets = int(nlenc.Uint32(a.Data))
+			info.TransmittedPackets = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_STA_INFO_TX_RETRIES:
-			info.TransmitRetries = int(nlenc.Uint32(a.Data))
+			info.TransmitRetries = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_STA_INFO_TX_FAILED:
-			info.TransmitFailed = int(nlenc.Uint32(a.Data))
+			info.TransmitFailed = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_STA_INFO_BEACON_LOSS:
-			info.BeaconLoss = int(nlenc.Uint32(a.Data))
+			info.BeaconLoss = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_STA_INFO_RX_BITRATE, unix.NL80211_STA_INFO_TX_BITRATE:
 			rate, err := parseRateInfo(a.Data)
 			if err != nil {
@@ -829,10 +829,10 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 		// If the 64-bit counters appear later in the slice, they will overwrite
 		// these values.
 		if info.ReceivedBytes == 0 && a.Type == unix.NL80211_STA_INFO_RX_BYTES {
-			info.ReceivedBytes = int(nlenc.Uint32(a.Data))
+			info.ReceivedBytes = int(binary.NativeEndian.Uint32(a.Data))
 		}
 		if info.TransmittedBytes == 0 && a.Type == unix.NL80211_STA_INFO_TX_BYTES {
-			info.TransmittedBytes = int(nlenc.Uint32(a.Data))
+			info.TransmittedBytes = int(binary.NativeEndian.Uint32(a.Data))
 		}
 	}
 
@@ -857,14 +857,14 @@ func parseRateInfo(b []byte) (*rateInfo, error) {
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_RATE_INFO_BITRATE32:
-			info.Bitrate = int(nlenc.Uint32(a.Data))
+			info.Bitrate = int(binary.NativeEndian.Uint32(a.Data))
 		}
 
 		// Only use 16-bit counters if the 32-bit counters are not present.
 		// If the 32-bit counters appear later in the slice, they will overwrite
 		// these values.
 		if info.Bitrate == 0 && a.Type == unix.NL80211_RATE_INFO_BITRATE {
-			info.Bitrate = int(nlenc.Uint16(a.Data))
+			info.Bitrate = int(binary.NativeEndian.Uint16(a.Data))
 		}
 	}
 
@@ -887,7 +887,7 @@ func parseSurveyInfo(b []byte) (*SurveyInfo, error) {
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_ATTR_IFINDEX:
-			info.InterfaceIndex = int(nlenc.Uint32(a.Data))
+			info.InterfaceIndex = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_ATTR_SURVEY_INFO:
 			nattrs, err := netlink.UnmarshalAttributes(a.Data)
 			if err != nil {
@@ -912,25 +912,25 @@ func (s *SurveyInfo) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_SURVEY_INFO_FREQUENCY:
-			s.Frequency = int(nlenc.Uint32(a.Data))
+			s.Frequency = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_SURVEY_INFO_NOISE:
 			s.Noise = int(int8(a.Data[0]))
 		case unix.NL80211_SURVEY_INFO_IN_USE:
 			s.InUse = true
 		case unix.NL80211_SURVEY_INFO_TIME:
-			s.ChannelTime = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+			s.ChannelTime = time.Duration(binary.NativeEndian.Uint64(a.Data)) * time.Millisecond
 		case unix.NL80211_SURVEY_INFO_TIME_BUSY:
-			s.ChannelTimeBusy = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+			s.ChannelTimeBusy = time.Duration(binary.NativeEndian.Uint64(a.Data)) * time.Millisecond
 		case unix.NL80211_SURVEY_INFO_TIME_EXT_BUSY:
-			s.ChannelTimeExtBusy = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+			s.ChannelTimeExtBusy = time.Duration(binary.NativeEndian.Uint64(a.Data)) * time.Millisecond
 		case unix.NL80211_SURVEY_INFO_TIME_BSS_RX:
-			s.ChannelTimeBssRx = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+			s.ChannelTimeBssRx = time.Duration(binary.NativeEndian.Uint64(a.Data)) * time.Millisecond
 		case unix.NL80211_SURVEY_INFO_TIME_RX:
-			s.ChannelTimeRx = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+			s.ChannelTimeRx = time.Duration(binary.NativeEndian.Uint64(a.Data)) * time.Millisecond
 		case unix.NL80211_SURVEY_INFO_TIME_TX:
-			s.ChannelTimeTx = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+			s.ChannelTimeTx = time.Duration(binary.NativeEndian.Uint64(a.Data)) * time.Millisecond
 		case unix.NL80211_SURVEY_INFO_TIME_SCAN:
-			s.ChannelTimeScan = time.Duration(nlenc.Uint64(a.Data)) * time.Millisecond
+			s.ChannelTimeScan = time.Duration(binary.NativeEndian.Uint64(a.Data)) * time.Millisecond
 		}
 	}
 
