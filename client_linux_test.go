@@ -569,40 +569,69 @@ func (b *BSS) attributes() []netlink.Attribute {
 	}
 }
 
-func modulationAttributes(rateInfo RateModulationInfo) (attr []netlink.Attribute) {
-	// attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_BITRATE, Data: nlenc.Uint16Bytes(uint16(bitrateAttr(s.ReceiveBitrate)))})
-	// attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_BITRATE32, Data: nlenc.Uint32Bytes(bitrateAttr(s.ReceiveBitrate))})
-	switch ri := rateInfo.(type) {
-	case BaseModulationInfo:
-		//ri := rateInfo.(BaseModulationInfo)
-		// TODO
-	case HTModulationInfo:
-		// TODO ??>
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_MCS, Data: []byte{uint8(ri.HTMCS)}})
-		if ri.ShortGI {
-			attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_SHORT_GI})
-		}
-	case VHTModulationInfo:
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: []byte{uint8(ri.MCS)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_NSS, Data: []byte{uint8(ri.NSS)}})
-		if ri.ShortGI {
-			attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_SHORT_GI})
-		}
-	case HEModulationInfo:
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_MCS, Data: []byte{uint8(ri.MCS)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_NSS, Data: []byte{uint8(ri.NSS)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_GI, Data: []byte{uint8(ri.GI)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_DCM, Data: []byte{uint8(ri.DCM)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_RU_ALLOC, Data: []byte{uint8(ri.RUAlloc)}})
-	case EHTModulationInfo:
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_MCS, Data: []byte{uint8(ri.MCS)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_NSS, Data: []byte{uint8(ri.NSS)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_GI, Data: []byte{uint8(ri.GI)}})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_RU_ALLOC, Data: []byte{uint8(ri.RUAlloc)}})
-	default:
-		fmt.Printf("Could not type-switch %v \n", rateInfo)
+type rateModulationMarshaler interface {
+	marshal() []netlink.Attribute
+}
+
+var (
+	_ rateModulationMarshaler = BaseModulationInfo{}
+	_ rateModulationMarshaler = HTModulationInfo{}
+	_ rateModulationMarshaler = VHTModulationInfo{}
+	_ rateModulationMarshaler = HEModulationInfo{}
+	_ rateModulationMarshaler = EHTModulationInfo{}
+)
+
+func (mi BaseModulationInfo) marshal() []netlink.Attribute { return nil }
+
+func (mi HTModulationInfo) marshal() (attr []netlink.Attribute) {
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_MCS, Data: []byte{uint8(mi.HTMCS)}})
+	if mi.ShortGI {
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_SHORT_GI})
 	}
+
 	return attr
+}
+
+func (mi VHTModulationInfo) marshal() (attr []netlink.Attribute) {
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: []byte{uint8(mi.MCS)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_NSS, Data: []byte{uint8(mi.NSS)}})
+	if mi.ShortGI {
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_SHORT_GI})
+	}
+
+	return attr
+}
+
+func (mi HEModulationInfo) marshal() (attr []netlink.Attribute) {
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_MCS, Data: []byte{uint8(mi.MCS)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_NSS, Data: []byte{uint8(mi.NSS)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_GI, Data: []byte{uint8(mi.GI)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_DCM, Data: []byte{uint8(mi.DCM)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_RU_ALLOC, Data: []byte{uint8(mi.RUAlloc)}})
+
+	return attr
+}
+
+func (mi EHTModulationInfo) marshal() (attr []netlink.Attribute) {
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_MCS, Data: []byte{uint8(mi.MCS)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_NSS, Data: []byte{uint8(mi.NSS)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_GI, Data: []byte{uint8(mi.GI)}})
+	attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_RU_ALLOC, Data: []byte{uint8(mi.RUAlloc)}})
+
+	return attr
+}
+
+func modulationAttributes(rateInfo RateModulationInfo) []netlink.Attribute {
+	if rateInfo == nil {
+		return nil
+	}
+
+	mod, ok := rateInfo.(rateModulationMarshaler)
+	if !ok {
+		return nil
+	}
+
+	return mod.marshal()
 }
 
 func channelWithAttributes(cw ChannelWidth) (attr []netlink.Attribute) {
