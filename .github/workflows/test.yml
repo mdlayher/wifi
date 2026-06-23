@@ -3,10 +3,11 @@ name: Test
 on:
   push:
     branches:
-      - '*'
+      - main
   pull_request:
-    branches:
-      - '*'
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -14,20 +15,20 @@ jobs:
       fail-fast: false
       matrix:
         go-version:
-        - "1.24"
-        - "1.25"
+        - 1.25.x
+        - 1.26.x
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
     - name: Set up Go
-      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
       with:
         go-version: ${{ matrix.go-version }}
       id: go
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     # Run basic tests, we just want to make sure there is parity on Linux and
     # macOS, and back to the oldest version of Go this library supports.

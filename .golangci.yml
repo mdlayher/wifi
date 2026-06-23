@@ -1,6 +1,8 @@
 version: "2"
 linters:
   enable:
+    - misspell
+    - modernize
     - revive
   exclusions:
     generated: lax

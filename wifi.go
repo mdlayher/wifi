@@ -384,7 +384,7 @@ type BSSLoad struct {
 	// ChannelUtilization: Percentage of time (linearly scaled 0 to 255) that the AP sensed the medium was busy. Calculated only for the primary channel.
 	ChannelUtilization uint8
 
-	// AvailableAdmissionCapacity: remaining amount of medium time availible via explicit admission controll in units of 32 us/s.
+	// AvailableAdmissionCapacity: remaining amount of medium time available via explicit admission control in units of 32 us/s.
 	AvailableAdmissionCapacity uint16
 }
 
@@ -731,3 +731,20 @@ func (r RSNInfo) String() string {
 		"RSN v%d  Group:%s  Pairwise:%v  AKM:%v",
 		r.Version, r.GroupCipher.String(), pairwiseNames, akmNames)
 }
+
+// RegulatoryDomain contains information about the regulatory domain the device or system operates in.
+type RegulatoryDomain struct {
+	Region string // ISO 3166-1 alpha-2 country code
+}
+
+// RegulatoryHint describes why the regulatory region is being set.
+// See:
+// - https://wireless.docs.kernel.org/en/latest/en/developers/regulatory/processing_rules.html#cellular-base-station-regulatory-hints
+// - https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/include/uapi/linux/nl80211.h?h=a55f7f5f29b32c2c53cc291899cf9b0c25a07f7c#n4803
+type RegulatoryHint uint32
+
+const (
+	RegulatoryHintUser     RegulatoryHint = 0x0 // Set by the userspace (default)
+	RegulatoryHintCellBase RegulatoryHint = 0x1 // Set based on cellular network information
+	RegulatoryHintIndoor   RegulatoryHint = 0x2 // Set because the device is indoors
+)

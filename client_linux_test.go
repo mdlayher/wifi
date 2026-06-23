@@ -721,6 +721,15 @@ func (s *SurveyInfo) attributes() []netlink.Attribute {
 	}
 }
 
+func (d *RegulatoryDomain) attributes() []netlink.Attribute {
+	return []netlink.Attribute{
+		{
+			Type: unix.NL80211_ATTR_REG_ALPHA2,
+			Data: nlenc.Bytes(d.Region),
+		},
+	}
+}
+
 func bitrateAttr(bitrate int) uint32 {
 	return uint32(bitrate / 100 / 1000)
 }
@@ -744,6 +753,9 @@ func mustMessages(t *testing.T, command uint8, want any) genltest.Func {
 		for _, x := range xs {
 			as = append(as, x)
 		}
+	case *RegulatoryDomain:
+		as = append(as, xs)
+
 	default:
 		t.Fatalf("cannot make messages for type: %T", xs)
 	}
@@ -1230,5 +1242,38 @@ func assertRSNError(t *testing.T, input []byte, expected *RSNInfo, errMsg string
 	}
 	if got.GroupCipher != expected.GroupCipher {
 		t.Errorf("decodeRSN() group cipher = %v, want %v", got.GroupCipher, expected.GroupCipher)
+	}
+}
+
+func TestLinux_GetRegulatoryDomain_NoMessages(t *testing.T) {
+	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+		// No messages
+		return nil, io.EOF
+	})
+
+	_, err := c.GetRegulatoryDomain()
+	if !os.IsNotExist(err) {
+		t.Fatalf("expected is not exist, got: %v", err)
+	}
+}
+
+func TestLinux_GetRegulatoryDomain_OK(t *testing.T) {
+	want := &RegulatoryDomain{
+		Region: "GB",
+	}
+
+	const flags = netlink.Request
+
+	c := testClient(t, genltest.CheckRequest(familyID, unix.NL80211_CMD_GET_REG, flags,
+		mustMessages(t, unix.NL80211_CMD_GET_REG, want),
+	))
+
+	got, err := c.GetRegulatoryDomain()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected region (-want +got):\n%s", diff)
 	}
 }
