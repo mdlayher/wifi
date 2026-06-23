@@ -578,27 +578,27 @@ func modulationAttributes(rateInfo RateModulationInfo) (attr []netlink.Attribute
 		// TODO
 	case HTModulationInfo:
 		// TODO ??>
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_MCS, Data: nlenc.Uint8Bytes(uint8(ri.HTMCS))})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_MCS, Data: []byte{uint8(ri.HTMCS)}})
 		if ri.ShortGI {
 			attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_SHORT_GI})
 		}
 	case VHTModulationInfo:
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: nlenc.Uint8Bytes(uint8(ri.MCS))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_NSS, Data: nlenc.Uint8Bytes(uint8(ri.NSS))})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: []byte{uint8(ri.MCS)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_VHT_NSS, Data: []byte{uint8(ri.NSS)}})
 		if ri.ShortGI {
 			attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_SHORT_GI})
 		}
 	case HEModulationInfo:
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_MCS, Data: nlenc.Uint8Bytes(uint8(ri.MCS))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_NSS, Data: nlenc.Uint8Bytes(uint8(ri.NSS))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_GI, Data: nlenc.Uint8Bytes(uint8(ri.GI))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_DCM, Data: nlenc.Uint8Bytes(uint8(ri.DCM))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_RU_ALLOC, Data: nlenc.Uint8Bytes(uint8(ri.RUAlloc))})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_MCS, Data: []byte{uint8(ri.MCS)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_NSS, Data: []byte{uint8(ri.NSS)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_GI, Data: []byte{uint8(ri.GI)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_DCM, Data: []byte{uint8(ri.DCM)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_HE_RU_ALLOC, Data: []byte{uint8(ri.RUAlloc)}})
 	case EHTModulationInfo:
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_MCS, Data: nlenc.Uint8Bytes(uint8(ri.MCS))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_NSS, Data: nlenc.Uint8Bytes(uint8(ri.NSS))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_GI, Data: nlenc.Uint8Bytes(uint8(ri.GI))})
-		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_RU_ALLOC, Data: nlenc.Uint8Bytes(uint8(ri.RUAlloc))})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_MCS, Data: []byte{uint8(ri.MCS)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_NSS, Data: []byte{uint8(ri.NSS)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_GI, Data: []byte{uint8(ri.GI)}})
+		attr = append(attr, netlink.Attribute{Type: unix.NL80211_RATE_INFO_EHT_RU_ALLOC, Data: []byte{uint8(ri.RUAlloc)}})
 	default:
 		fmt.Printf("Could not type-switch %v \n", rateInfo)
 	}

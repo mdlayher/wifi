@@ -879,23 +879,23 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 		// https://git.kernel.org/pub/scm/linux/kernel/git/jberg/iw.git/tree/station.c?h=v6.17#n199
 		switch a.Type {
 		case unix.NL80211_RATE_INFO_BITRATE32:
-			rateinfo.Bitrate = int(nlenc.Uint32(a.Data))
+			rateinfo.Bitrate = int(binary.NativeEndian.Uint32(a.Data))
 			iwDescription += bitrateStr(rateinfo.Bitrate)
 		case unix.NL80211_RATE_INFO_BITRATE:
 			// Only use 16-bit counters if the 32-bit counters are not present.
 			// If the 32-bit counters appear later in the slice, they will overwrite
 			// these values.
 			if rateinfo.Bitrate == 0 {
-				rateinfo.Bitrate = int(nlenc.Uint16(a.Data))
+				rateinfo.Bitrate = int(binary.NativeEndian.Uint16(a.Data))
 				iwDescription += bitrateStr(rateinfo.Bitrate)
 			}
 		case unix.NL80211_RATE_INFO_MCS:
-			htModulationInfo.HTMCS = int(nlenc.Uint8(a.Data))
+			htModulationInfo.HTMCS = int(a.Data[0])
 			htModulationInfo.MCS = htModulationInfo.HTMCS % 8
 			htModulationInfo.NSS = (htModulationInfo.HTMCS / 8) + 1
 			iwDescription += fmt.Sprintf(" MCS %d", htModulationInfo.HTMCS)
 		case unix.NL80211_RATE_INFO_VHT_MCS:
-			vhtModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			vhtModulationInfo.MCS = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" VHT-MCS %d", vhtModulationInfo.MCS)
 		case unix.NL80211_RATE_INFO_40_MHZ_WIDTH:
 			channelWidth = ChannelWidth40
@@ -932,34 +932,34 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 			vhtModulationInfo.ShortGI = true
 			iwDescription += " Short GI"
 		case unix.NL80211_RATE_INFO_VHT_NSS:
-			vhtModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			vhtModulationInfo.NSS = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" VHT-NSS %d", vhtModulationInfo.NSS)
 		case unix.NL80211_RATE_INFO_HE_MCS:
-			heModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			heModulationInfo.MCS = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" HE-MCS %d", heModulationInfo.MCS)
 		case unix.NL80211_RATE_INFO_HE_NSS:
-			heModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			heModulationInfo.NSS = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" HE-NSS %d", heModulationInfo.NSS)
 		case unix.NL80211_RATE_INFO_HE_GI:
-			heModulationInfo.GI = int(nlenc.Uint8(a.Data))
+			heModulationInfo.GI = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" HE-GI %d", heModulationInfo.GI)
 		case unix.NL80211_RATE_INFO_HE_DCM:
-			heModulationInfo.DCM = int(nlenc.Uint8(a.Data))
+			heModulationInfo.DCM = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" HE-DCM %d", heModulationInfo.DCM)
 		case unix.NL80211_RATE_INFO_HE_RU_ALLOC:
-			heModulationInfo.RUAlloc = int(nlenc.Uint8(a.Data))
+			heModulationInfo.RUAlloc = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" HE-RU-ALLOC %d", heModulationInfo.RUAlloc)
 		case unix.NL80211_RATE_INFO_EHT_MCS:
-			ehtModulationInfo.MCS = int(nlenc.Uint8(a.Data))
+			ehtModulationInfo.MCS = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" EHT-MCS %d", ehtModulationInfo.MCS)
 		case unix.NL80211_RATE_INFO_EHT_NSS:
-			ehtModulationInfo.NSS = int(nlenc.Uint8(a.Data))
+			ehtModulationInfo.NSS = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" EHT-NSS %d", ehtModulationInfo.NSS)
 		case unix.NL80211_RATE_INFO_EHT_GI:
-			ehtModulationInfo.GI = int(nlenc.Uint8(a.Data))
+			ehtModulationInfo.GI = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" EHT-GI %d", ehtModulationInfo.GI)
 		case unix.NL80211_RATE_INFO_EHT_RU_ALLOC:
-			ehtModulationInfo.RUAlloc = int(nlenc.Uint8(a.Data))
+			ehtModulationInfo.RUAlloc = int(a.Data[0])
 			iwDescription += fmt.Sprintf(" EHT-RU-ALLOC %d", ehtModulationInfo.RUAlloc)
 		}
 	}
