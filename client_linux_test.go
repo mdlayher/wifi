@@ -673,6 +673,7 @@ func (unsupportedRateModulationInfo) GetMCS() int            { return -1 }
 func (unsupportedRateModulationInfo) GetNSS() int            { return -1 }
 func (unsupportedRateModulationInfo) Description() string    { return "unsupported" }
 func (unsupportedRateModulationInfo) WifiGeneration() string { return "unknown" }
+func (unsupportedRateModulationInfo) String() string         { return "unsupported" }
 
 func Test_modulationAttributes(t *testing.T) {
 	tests := []struct {

@@ -842,7 +842,8 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 	return nil
 }
 
-func bitrateStr(bitrate int) string {
+// TODO: remove after String Methods are implemented for RateInfo and ChannelWidth
+func bitrateStrOLD(bitrate int) string {
 	if bitrate > 0 {
 		return fmt.Sprintf("%d.%d MBit/s ", bitrate/10, bitrate%10)
 	}
@@ -879,14 +880,14 @@ func parseRateInfo(b []byte) (RateInfo, error) {
 		switch a.Type {
 		case unix.NL80211_RATE_INFO_BITRATE32:
 			rateinfo.Bitrate = int(binary.NativeEndian.Uint32(a.Data))
-			iwDescription += bitrateStr(rateinfo.Bitrate)
+			iwDescription += bitrateStrOLD(rateinfo.Bitrate)
 		case unix.NL80211_RATE_INFO_BITRATE:
 			// Only use 16-bit counters if the 32-bit counters are not present.
 			// If the 32-bit counters appear later in the slice, they will overwrite
 			// these values.
 			if rateinfo.Bitrate == 0 {
 				rateinfo.Bitrate = int(binary.NativeEndian.Uint16(a.Data))
-				iwDescription += bitrateStr(rateinfo.Bitrate)
+				iwDescription += bitrateStrOLD(rateinfo.Bitrate)
 			}
 		case unix.NL80211_RATE_INFO_MCS:
 			htModulationInfo.HTMCS = int(a.Data[0])

@@ -503,3 +503,167 @@ func TestRateInfo_GenerationString(t *testing.T) {
 		})
 	}
 }
+
+func TestRateModulationInfo_String(t *testing.T) {
+	tests := []struct {
+		name string
+		rm   RateModulationInfo
+		want string
+	}{
+		{
+			name: "Base",
+			rm: BaseModulationInfo{
+				MCS: 3,
+				NSS: 2,
+			},
+			want: "MCS: 3, NSS: 2",
+		},
+		{
+			name: "HT",
+			rm: HTModulationInfo{
+				BaseModulationInfo: BaseModulationInfo{
+					NSS: 2,
+				},
+				HTMCS:   13,
+				ShortGI: true,
+			},
+			want: "Short GI HT-MCS: 13, NSS: 2",
+		},
+		{
+			name: "VHT",
+			rm: VHTModulationInfo{
+				BaseModulationInfo: BaseModulationInfo{
+					MCS: 9,
+					NSS: 2,
+				},
+				ShortGI: true,
+			},
+			want: "Short GI VHT-MCS: 9, NSS: 2",
+		},
+		{
+			name: "HE",
+			rm: HEModulationInfo{
+				BaseModulationInfo: BaseModulationInfo{
+					MCS: 7,
+					NSS: 2,
+				},
+				GI:      2,
+				DCM:     0,
+				RUAlloc: 5,
+			},
+			want: "HE-MCS: 7, NSS: 2, GI: 2, DCM: 0, RUAlloc: 5",
+		},
+		{
+			name: "EHT",
+			rm: EHTModulationInfo{
+				BaseModulationInfo: BaseModulationInfo{
+					MCS: 13,
+					NSS: 4,
+				},
+				GI:      1,
+				RUAlloc: 106,
+			},
+			want: "EHT-MCS: 13, NSS: 4, GI: 1, RUAlloc: 106",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.rm.String(); got != tt.want {
+				t.Errorf("RateModulationInfo.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRateInfo_String(t *testing.T) {
+	tests := []struct {
+		name string
+		ri   RateInfo
+		want string
+	}{
+		{
+			name: "KnownBitrate",
+			ri: RateInfo{
+				Bitrate:      867,
+				ChannelWidth: ChannelWidth20NoHT,
+				Modulation: BaseModulationInfo{
+					MCS:           9,
+					NSS:           2,
+					IwDescription: "this should not be used",
+				},
+			},
+			want: "86.7 MBit/s unknown 20 MHz (no HT) MCS: 9, NSS: 2",
+		},
+		{
+			name: "UnknownBitrate",
+			ri: RateInfo{
+				ChannelWidth: ChannelWidth20NoHT,
+				Modulation: HTModulationInfo{
+					BaseModulationInfo: BaseModulationInfo{
+						NSS:           2,
+						IwDescription: "this should not be used",
+					},
+					HTMCS: 13,
+				},
+			},
+			want: "(unknown) Mbit/s 802.11n (WiFi 4) 20 MHz (no HT) HT-MCS: 13, NSS: 2",
+		},
+		{
+			name: "VHT40MHz",
+			ri: RateInfo{
+				Bitrate:      780,
+				ChannelWidth: ChannelWidth40,
+				Modulation: VHTModulationInfo{
+					BaseModulationInfo: BaseModulationInfo{
+						MCS: 8,
+						NSS: 2,
+					},
+					ShortGI: true,
+				},
+			},
+			want: "78.0 MBit/s 802.11ac (WiFi 5) 40 MHz Short GI VHT-MCS: 8, NSS: 2",
+		},
+		{
+			name: "HE80MHz",
+			ri: RateInfo{
+				Bitrate:      1201,
+				ChannelWidth: ChannelWidth80,
+				Modulation: HEModulationInfo{
+					BaseModulationInfo: BaseModulationInfo{
+						MCS: 11,
+						NSS: 2,
+					},
+					GI:      1,
+					DCM:     0,
+					RUAlloc: 106,
+				},
+			},
+			want: "120.1 MBit/s 802.11ax (WiFi 6) 80 MHz HE-MCS: 11, NSS: 2, GI: 1, DCM: 0, RUAlloc: 106",
+		},
+		{
+			name: "EHT320MHz",
+			ri: RateInfo{
+				Bitrate:      5765,
+				ChannelWidth: ChannelWidth320,
+				Modulation: EHTModulationInfo{
+					BaseModulationInfo: BaseModulationInfo{
+						MCS: 13,
+						NSS: 4,
+					},
+					GI:      1,
+					RUAlloc: 996,
+				},
+			},
+			want: "576.5 MBit/s 802.11be (WiFi 7) 320 MHz EHT-MCS: 13, NSS: 4, GI: 1, RUAlloc: 996",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.ri.String(); got != tt.want {
+				t.Errorf("RateInfo.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

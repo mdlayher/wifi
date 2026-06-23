@@ -219,6 +219,10 @@ type RateModulationInfo interface {
 	// Uses same format as iw tool, but not necessary in the same order.
 	Description() string
 
+	// Description returns a human-readable description of the modulation info.
+	// Format is not compatible with the iw output, but is more verbose and includes all relevant information.
+	String() string
+
 	// WifiGeneration returns the WiFi generation (e.g., "802.11n (WiFi 4)", "802.11ac (WiFi 5)", "802.11ax (WiFi 6)", "802.11be (WiFi 7)")
 	WifiGeneration() string
 }
@@ -245,6 +249,10 @@ func (mi BaseModulationInfo) WifiGeneration() string {
 	return "unknown"
 }
 
+func (mi BaseModulationInfo) String() string {
+	return fmt.Sprintf("MCS: %d, NSS: %d", mi.MCS, mi.NSS)
+}
+
 // HTModulationInfo represents modulation information for HT rates.
 // MCS Indexes originally range from 0 to 31. NSS is coded in the MCS index as follows:
 // NSS = (MCS / 8) + 1
@@ -260,6 +268,14 @@ func (mi HTModulationInfo) WifiGeneration() string {
 	return "802.11n (WiFi 4)"
 }
 
+func (mi HTModulationInfo) String() string {
+	shortGiString := ""
+	if mi.ShortGI {
+		shortGiString = "Short GI "
+	}
+	return fmt.Sprintf("%sHT-MCS: %d, NSS: %d", shortGiString, mi.HTMCS, mi.NSS)
+}
+
 // VHTModulationInfo represents modulation information for VHT rates.
 type VHTModulationInfo struct {
 	BaseModulationInfo
@@ -268,6 +284,14 @@ type VHTModulationInfo struct {
 
 func (mi VHTModulationInfo) WifiGeneration() string {
 	return "802.11ac (WiFi 5)"
+}
+
+func (mi VHTModulationInfo) String() string {
+	shortGiString := ""
+	if mi.ShortGI {
+		shortGiString = "Short GI "
+	}
+	return fmt.Sprintf("%sVHT-MCS: %d, NSS: %d", shortGiString, mi.MCS, mi.NSS)
 }
 
 type HEModulationInfo struct {
@@ -281,6 +305,10 @@ func (mi HEModulationInfo) WifiGeneration() string {
 	return "802.11ax (WiFi 6)"
 }
 
+func (mi HEModulationInfo) String() string {
+	return fmt.Sprintf("HE-MCS: %d, NSS: %d, GI: %d, DCM: %d, RUAlloc: %d", mi.MCS, mi.NSS, mi.GI, mi.DCM, mi.RUAlloc)
+}
+
 type EHTModulationInfo struct {
 	BaseModulationInfo
 	GI      int
@@ -289,6 +317,10 @@ type EHTModulationInfo struct {
 
 func (mi EHTModulationInfo) WifiGeneration() string {
 	return "802.11be (WiFi 7)"
+}
+
+func (mi EHTModulationInfo) String() string {
+	return fmt.Sprintf("EHT-MCS: %d, NSS: %d, GI: %d, RUAlloc: %d", mi.MCS, mi.NSS, mi.GI, mi.RUAlloc)
 }
 
 // RateModulationInfoType indicates the type of modulation used for a rate.
@@ -316,6 +348,17 @@ type RateInfo struct {
 
 	// Channel width used for this rate.
 	ChannelWidth ChannelWidth
+}
+
+func bitrateStr(bitrate int) string {
+	if bitrate > 0 {
+		return fmt.Sprintf("%d.%d MBit/s", bitrate/10, bitrate%10)
+	}
+	return "(unknown) Mbit/s"
+}
+
+func (r RateInfo) String() string {
+	return fmt.Sprintf("%s %s %s %s", bitrateStr(r.Bitrate), r.Modulation.WifiGeneration(), r.ChannelWidth.String(), r.Modulation.String())
 }
 
 // StationInfo contains statistics about a WiFi interface operating in
