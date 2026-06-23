@@ -821,10 +821,10 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 			switch a.Type {
 			case unix.NL80211_STA_INFO_RX_BITRATE:
 				info.ReceiveBitrate = rate.Bitrate
-				info.ReceiveRateInfo = *rate
+				info.ReceiveRateInfo = rate
 			case unix.NL80211_STA_INFO_TX_BITRATE:
 				info.TransmitBitrate = rate.Bitrate
-				info.TransmitRateInfo = *rate
+				info.TransmitRateInfo = rate
 			}
 		}
 
@@ -850,10 +850,10 @@ func bitrateStr(bitrate int) string {
 }
 
 // parseRateInfo parses a rateInfo from netlink attributes.
-func parseRateInfo(b []byte) (*RateInfo, error) {
+func parseRateInfo(b []byte) (RateInfo, error) {
 	attrs, err := netlink.UnmarshalAttributes(b)
 	if err != nil {
-		return nil, err
+		return RateInfo{}, err
 	}
 
 	var rateinfo RateInfo
@@ -866,7 +866,6 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 	// build the string separately and assign at the end
 	var iwDescription string
 	iwDescription = ""
-	// shortGi := false
 
 	// re-use Channel Width type from Interface, even though we classify via NL80211_RATE_INFO_*
 	// strings are done manually do keep comaptibility with iw
@@ -994,7 +993,7 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 	// * @NL80211_RATE_INFO_BITRATE: total bitrate (u16, 100kbit/s)
 	rateinfo.Bitrate *= 100 * 1000
 
-	return &rateinfo, nil
+	return rateinfo, nil
 }
 
 // parseSurveyInfo parses a single SurveyInfo from a byte slice of netlink
