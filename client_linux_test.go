@@ -667,6 +667,83 @@ func channelWithAttributes(cw ChannelWidth) (attr []netlink.Attribute) {
 	}
 }
 
+type unsupportedRateModulationInfo struct{}
+
+func (unsupportedRateModulationInfo) GetMCS() int            { return -1 }
+func (unsupportedRateModulationInfo) GetNSS() int            { return -1 }
+func (unsupportedRateModulationInfo) Description() string    { return "unsupported" }
+func (unsupportedRateModulationInfo) WifiGeneration() string { return "unknown" }
+
+func Test_modulationAttributes(t *testing.T) {
+	tests := []struct {
+		name string
+		in   RateModulationInfo
+		want []netlink.Attribute
+	}{
+		{
+			name: "nil",
+			in:   nil,
+			want: nil,
+		},
+		{
+			name: "unsupported implementation",
+			in:   unsupportedRateModulationInfo{},
+			want: nil,
+		},
+		{
+			name: "base modulation",
+			in:   BaseModulationInfo{MCS: 1, NSS: 1},
+			want: nil,
+		},
+		{
+			name: "ht with short gi",
+			in:   HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2}, HTMCS: 14, ShortGI: true},
+			want: []netlink.Attribute{
+				{Type: unix.NL80211_RATE_INFO_MCS, Data: []byte{14}},
+				{Type: unix.NL80211_RATE_INFO_SHORT_GI},
+			},
+		},
+		{
+			name: "vht without short gi",
+			in:   VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1}, ShortGI: false},
+			want: []netlink.Attribute{
+				{Type: unix.NL80211_RATE_INFO_VHT_MCS, Data: []byte{3}},
+				{Type: unix.NL80211_RATE_INFO_VHT_NSS, Data: []byte{1}},
+			},
+		},
+		{
+			name: "he",
+			in:   HEModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 2, NSS: 1}, GI: 1, DCM: 2, RUAlloc: 3},
+			want: []netlink.Attribute{
+				{Type: unix.NL80211_RATE_INFO_HE_MCS, Data: []byte{2}},
+				{Type: unix.NL80211_RATE_INFO_HE_NSS, Data: []byte{1}},
+				{Type: unix.NL80211_RATE_INFO_HE_GI, Data: []byte{1}},
+				{Type: unix.NL80211_RATE_INFO_HE_DCM, Data: []byte{2}},
+				{Type: unix.NL80211_RATE_INFO_HE_RU_ALLOC, Data: []byte{3}},
+			},
+		},
+		{
+			name: "eht",
+			in:   EHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2}, GI: 22, RUAlloc: 33},
+			want: []netlink.Attribute{
+				{Type: unix.NL80211_RATE_INFO_EHT_MCS, Data: []byte{5}},
+				{Type: unix.NL80211_RATE_INFO_EHT_NSS, Data: []byte{2}},
+				{Type: unix.NL80211_RATE_INFO_EHT_GI, Data: []byte{22}},
+				{Type: unix.NL80211_RATE_INFO_EHT_RU_ALLOC, Data: []byte{33}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := modulationAttributes(tt.in)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Fatalf("unexpected modulation attributes (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
 func (s *StationInfo) attributes() []netlink.Attribute {
 	return []netlink.Attribute{
 		// TODO(mdlayher): return more attributes for validation?
