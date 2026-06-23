@@ -863,7 +863,7 @@ func parseRateInfo(b []byte) (*RateInfo, error) {
 	heModulationInfo := HEModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
 	ehtModulationInfo := EHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: -1, NSS: -1}}
 
-	// build the string seperately and assign at the end
+	// build the string separately and assign at the end
 	var iwDescription string
 	iwDescription = ""
 	// shortGi := false
