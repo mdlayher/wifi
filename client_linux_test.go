@@ -289,8 +289,8 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			BeaconLoss:         3,
 			ReceiveBitrate:     130000000,
 			TransmitBitrate:    130000000,
-			ReceiveRateInfo:    RateInfo{Bitrate: 130000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2, IwDescription: "130.0 MBit/s 130.0 MBit/s  VHT-MCS 5 VHT-NSS 2 Short GI 80P80MHz"}, ShortGI: true}, ChannelWidth: ChannelWidth80P80},
-			TransmitRateInfo:   RateInfo{Bitrate: 130000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1, IwDescription: "130.0 MBit/s 130.0 MBit/s  VHT-MCS 3 VHT-NSS 1 Short GI 40MHz"}, ShortGI: true}, ChannelWidth: ChannelWidth40},
+			ReceiveRateInfo:    RateInfo{Bitrate: 130000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2}, ShortGI: true}, ChannelWidth: ChannelWidth80P80},
+			TransmitRateInfo:   RateInfo{Bitrate: 130000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1}, ShortGI: true}, ChannelWidth: ChannelWidth40},
 		},
 		{
 			InterfaceIndex:     1,
@@ -308,8 +308,8 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			BeaconLoss:         6,
 			ReceiveBitrate:     260000000,
 			TransmitBitrate:    240000000,
-			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  VHT-MCS 5 VHT-NSS 2 Short GI 80MHz"}, ShortGI: true}, ChannelWidth: ChannelWidth80},
-			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  VHT-MCS 3 VHT-NSS 1 160MHz"}, ShortGI: false}, ChannelWidth: ChannelWidth160},
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2}, ShortGI: true}, ChannelWidth: ChannelWidth80},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeVHT, Modulation: VHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1}, ShortGI: false}, ChannelWidth: ChannelWidth160},
 		},
 		{
 			InterfaceIndex:     1,
@@ -327,8 +327,8 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			BeaconLoss:         6,
 			ReceiveBitrate:     260000000,
 			TransmitBitrate:    240000000,
-			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeEHT, Modulation: EHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  EHT-MCS 5 EHT-NSS 2 EHT-GI 22 EHT-RU-ALLOC 33 320MHz"}, GI: 22, RUAlloc: 33}, ChannelWidth: ChannelWidth320},
-			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHE, Modulation: HEModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  HE-MCS 3 HE-NSS 1 HE-GI 1 HE-DCM 2 HE-RU-ALLOC 3 160MHz"}, GI: 1, DCM: 2, RUAlloc: 3}, ChannelWidth: ChannelWidth160},
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeEHT, Modulation: EHTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 5, NSS: 2}, GI: 22, RUAlloc: 33}, ChannelWidth: ChannelWidth320},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHE, Modulation: HEModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 3, NSS: 1}, GI: 1, DCM: 2, RUAlloc: 3}, ChannelWidth: ChannelWidth160},
 		},
 		{
 			InterfaceIndex:     3,
@@ -346,8 +346,8 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			BeaconLoss:         6,
 			ReceiveBitrate:     260000000,
 			TransmitBitrate:    240000000,
-			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  MCS 14 Short GI 16MHz"}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth16},
-			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  MCS 7 4MHz"}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth4},
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth16},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth4},
 		},
 		{
 			InterfaceIndex:     3,
@@ -365,8 +365,8 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			BeaconLoss:         6,
 			ReceiveBitrate:     260000000,
 			TransmitBitrate:    240000000,
-			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  MCS 14 Short GI 1MHz"}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth1},
-			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  MCS 7 2MHz"}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth2},
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth1},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth2},
 		},
 		{
 			InterfaceIndex:     3,
@@ -384,8 +384,8 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 			BeaconLoss:         6,
 			ReceiveBitrate:     260000000,
 			TransmitBitrate:    240000000,
-			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2, IwDescription: "260.0 MBit/s 260.0 MBit/s  MCS 14 Short GI 8MHz"}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth8},
-			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1, IwDescription: "240.0 MBit/s 240.0 MBit/s  MCS 7 8MHz"}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth8},
+			ReceiveRateInfo:    RateInfo{Bitrate: 260000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 6, NSS: 2}, HTMCS: 14, ShortGI: true}, ChannelWidth: ChannelWidth8},
+			TransmitRateInfo:   RateInfo{Bitrate: 240000000, ModulationType: RateModulationInfoTypeHT, Modulation: HTModulationInfo{BaseModulationInfo: BaseModulationInfo{MCS: 7, NSS: 1}, HTMCS: 7, ShortGI: false}, ChannelWidth: ChannelWidth8},
 		},
 	}
 
@@ -671,7 +671,6 @@ type unsupportedRateModulationInfo struct{}
 
 func (unsupportedRateModulationInfo) GetMCS() int            { return -1 }
 func (unsupportedRateModulationInfo) GetNSS() int            { return -1 }
-func (unsupportedRateModulationInfo) Description() string    { return "unsupported" }
 func (unsupportedRateModulationInfo) WifiGeneration() string { return "unknown" }
 func (unsupportedRateModulationInfo) String() string         { return "unsupported" }
 

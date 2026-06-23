@@ -215,12 +215,8 @@ type RateModulationInfo interface {
 	// NSS is the number of spatial streams.
 	GetNSS() int
 
-	// Description returns a human-readable description of the modulation info.
-	// Uses same format as iw tool, but not necessary in the same order.
-	Description() string
-
-	// Description returns a human-readable description of the modulation info.
-	// Format is not compatible with the iw output, but is more verbose and includes all relevant information.
+	// String returns a human-readable description of the modulation info.
+	// Format is more verbose and includes all relevant information.
 	String() string
 
 	// WifiGeneration returns the WiFi generation (e.g., "802.11n (WiFi 4)", "802.11ac (WiFi 5)", "802.11ax (WiFi 6)", "802.11be (WiFi 7)")
@@ -228,9 +224,8 @@ type RateModulationInfo interface {
 }
 
 type BaseModulationInfo struct {
-	MCS           int
-	NSS           int
-	IwDescription string
+	MCS int
+	NSS int
 }
 
 func (mi BaseModulationInfo) GetMCS() int {
@@ -239,10 +234,6 @@ func (mi BaseModulationInfo) GetMCS() int {
 
 func (mi BaseModulationInfo) GetNSS() int {
 	return mi.NSS
-}
-
-func (mi BaseModulationInfo) Description() string {
-	return mi.IwDescription
 }
 
 func (mi BaseModulationInfo) WifiGeneration() string {

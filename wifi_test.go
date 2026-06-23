@@ -588,9 +588,8 @@ func TestRateInfo_String(t *testing.T) {
 				Bitrate:      867,
 				ChannelWidth: ChannelWidth20NoHT,
 				Modulation: BaseModulationInfo{
-					MCS:           9,
-					NSS:           2,
-					IwDescription: "this should not be used",
+					MCS: 9,
+					NSS: 2,
 				},
 			},
 			want: "86.7 MBit/s unknown 20 MHz (no HT) MCS: 9, NSS: 2",
@@ -601,8 +600,7 @@ func TestRateInfo_String(t *testing.T) {
 				ChannelWidth: ChannelWidth20NoHT,
 				Modulation: HTModulationInfo{
 					BaseModulationInfo: BaseModulationInfo{
-						NSS:           2,
-						IwDescription: "this should not be used",
+						NSS: 2,
 					},
 					HTMCS: 13,
 				},
