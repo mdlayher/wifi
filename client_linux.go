@@ -751,7 +751,7 @@ func phyNumber(attrs []netlink.Attribute) (int, error) {
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_ATTR_WIPHY:
-			return int(nlenc.Uint32(a.Data)), nil
+			return int(binary.NativeEndian.Uint32(a.Data)), nil
 		}
 	}
 	return 0, fmt.Errorf("there was no wiphy attribute")
@@ -762,7 +762,7 @@ func (p *PHY) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
 		switch a.Type {
 		case unix.NL80211_ATTR_WIPHY:
-			p.Index = int(nlenc.Uint32(a.Data))
+			p.Index = int(binary.NativeEndian.Uint32(a.Data))
 
 		case unix.NL80211_ATTR_WIPHY_NAME:
 			p.Name = nlenc.String(a.Data)
@@ -849,7 +849,7 @@ func parseCombo(comboNLA netlink.Attribute) (*InterfaceCombination, error) {
 				for _, la := range ltypes {
 					switch la.Type {
 					case unix.NL80211_IFACE_LIMIT_MAX:
-						comboLimit.Max = int(nlenc.Uint32(la.Data))
+						comboLimit.Max = int(binary.NativeEndian.Uint32(la.Data))
 					case unix.NL80211_IFACE_LIMIT_TYPES:
 						types, err := netlink.UnmarshalAttributes(la.Data)
 						if err != nil {
@@ -865,10 +865,10 @@ func parseCombo(comboNLA netlink.Attribute) (*InterfaceCombination, error) {
 			}
 
 		case unix.NL80211_IFACE_COMB_NUM_CHANNELS:
-			combo.NumChannels = int(nlenc.Uint32(attr.Data))
+			combo.NumChannels = int(binary.NativeEndian.Uint32(attr.Data))
 
 		case unix.NL80211_IFACE_COMB_MAXNUM:
-			combo.Total = int(nlenc.Uint32(attr.Data))
+			combo.Total = int(binary.NativeEndian.Uint32(attr.Data))
 
 		case unix.NL80211_IFACE_COMB_STA_AP_BI_MATCH:
 			combo.StaApBiMatch = true
@@ -899,10 +899,10 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 	for _, attr := range attrs {
 		switch attr.Type {
 		case unix.NL80211_BAND_ATTR_HT_CAPA:
-			ba.HTCapabilities = decodeHTCapabilities(ba.HTCapabilities, nlenc.Uint16(attr.Data))
+			ba.HTCapabilities = decodeHTCapabilities(ba.HTCapabilities, binary.NativeEndian.Uint16(attr.Data))
 
 		case unix.NL80211_BAND_ATTR_HT_AMPDU_FACTOR:
-			exponent := nlenc.Uint8(attr.Data)
+			exponent := attr.Data[0]
 			// The exponent comes from three bits of OTA data, but
 			// netlink gives it to us as an 8-bit value.
 			if exponent < 4 {
@@ -915,13 +915,13 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 			}
 
 		case unix.NL80211_BAND_ATTR_HT_AMPDU_DENSITY:
-			spacing := nlenc.Uint8(attr.Data)
+			spacing := attr.Data[0]
 			if spacing > 0 {
 				ba.MinRxAMPDUSpacing = (1 << (spacing - 1)) * time.Microsecond / 4
 			}
 
 		case unix.NL80211_BAND_ATTR_VHT_CAPA:
-			ba.VHTCapabilities = decodeVHTCapabilities(ba.VHTCapabilities, nlenc.Uint32(attr.Data))
+			ba.VHTCapabilities = decodeVHTCapabilities(ba.VHTCapabilities, binary.NativeEndian.Uint32(attr.Data))
 		case unix.NL80211_BAND_ATTR_HT_MCS_SET:
 			if ba.HTCapabilities == nil {
 				ba.HTCapabilities = new(HTCapabilities)
@@ -952,7 +952,7 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 				for _, bra2 := range brattrs {
 					switch bra2.Type {
 					case unix.NL80211_BITRATE_ATTR_RATE:
-						bra.Bitrate = 0.1 * float32(nlenc.Uint32(bra2.Data))
+						bra.Bitrate = 0.1 * float32(binary.NativeEndian.Uint32(bra2.Data))
 					case unix.NL80211_BITRATE_ATTR_2GHZ_SHORTPREAMBLE:
 						bra.ShortPreamble = true
 					}
@@ -974,7 +974,7 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 				for _, fa2 := range fattrs {
 					switch fa2.Type {
 					case unix.NL80211_FREQUENCY_ATTR_FREQ:
-						fa.Frequency = int(nlenc.Uint32(fa2.Data))
+						fa.Frequency = int(binary.NativeEndian.Uint32(fa2.Data))
 					case unix.NL80211_FREQUENCY_ATTR_DISABLED:
 						fa.Disabled = true
 					// In 8fe02e167efa8 (3.14), Linux renamed the
@@ -986,7 +986,7 @@ func (p *PHY) parseBandAttributes(nlband netlink.Attribute) error {
 					case unix.NL80211_FREQUENCY_ATTR_RADAR:
 						fa.RadarDetection = true
 					case unix.NL80211_FREQUENCY_ATTR_MAX_TX_POWER:
-						fa.MaxTxPower = 0.01 * float32(nlenc.Uint32(fa2.Data))
+						fa.MaxTxPower = 0.01 * float32(binary.NativeEndian.Uint32(fa2.Data))
 					}
 				}
 				ba.FrequencyAttributes = append(ba.FrequencyAttributes, fa)
