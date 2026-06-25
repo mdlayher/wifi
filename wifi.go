@@ -322,6 +322,7 @@ const (
 	RateModulationInfoTypeVHT
 	RateModulationInfoTypeHE
 	RateModulationInfoTypeEHT
+	RateModulationInfoTypeLegacy
 	RateModulationInfoTypeUNKNOWN
 )
 

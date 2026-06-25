@@ -857,6 +857,7 @@ func parseRateInfo(b []byte) (RateInfo, error) {
 
 	// re-use Channel Width type from Interface, even though we classify via NL80211_RATE_INFO_*
 	var channelWidth ChannelWidth
+	channelWidth = ChannelWidth20 // default to 20 MHz if not specified
 
 	for _, a := range attrs {
 		// see iw's station.c for reference implementation
@@ -941,11 +942,16 @@ func parseRateInfo(b []byte) (RateInfo, error) {
 		rateinfo.ModulationType = RateModulationInfoTypeHT
 		rateinfo.Modulation = htModulationInfo
 	default:
-		rateinfo.ModulationType = RateModulationInfoTypeUNKNOWN
+		// On legacy Networks the modulation info is not provided, so we set the type to legacy and the modulation info to nil
+		rateinfo.ModulationType = RateModulationInfoTypeLegacy
 		rateinfo.Modulation = nil
 	}
 
 	rateinfo.ChannelWidth = channelWidth
+	if rateinfo.ChannelWidth == ChannelWidth20 {
+		// For legacy networks, 20MHzNoHT is the default channel width, so we set it to that if no channel width was provided
+		rateinfo.ChannelWidth = ChannelWidth20NoHT
+	}
 
 	// Scale bitrate to bits/second as base unit instead of 100kbits/second.
 	// * @NL80211_RATE_INFO_BITRATE: total bitrate (u16, 100kbit/s)
