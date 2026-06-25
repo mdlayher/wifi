@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -208,6 +209,8 @@ type Interface struct {
 	ChannelWidth ChannelWidth
 }
 
+// RateModulationInfo is implemented by modulation types in this package.
+// External implementations are not supported.
 type RateModulationInfo interface {
 	// MCS is the modulation and coding scheme index.
 	GetMCS() int
@@ -221,6 +224,13 @@ type RateModulationInfo interface {
 
 	// WifiGeneration returns the WiFi generation (e.g., "802.11n (WiFi 4)", "802.11ac (WiFi 5)", "802.11ax (WiFi 6)", "802.11be (WiFi 7)")
 	WifiGeneration() string
+
+	// HasShortGI reports whether this modulation currently uses short guard interval.
+	HasShortGI() bool
+
+	// formatRateInfoWithWidth renders modulation details for RateInfo.String's
+	// iw-style output. It is unexported to prevent external implementations.
+	formatRateInfoWithWidth(channelWidth string) string
 }
 
 type BaseModulationInfo struct {
@@ -240,8 +250,22 @@ func (mi BaseModulationInfo) WifiGeneration() string {
 	return "unknown"
 }
 
+func (mi BaseModulationInfo) HasShortGI() bool {
+	return false
+}
+
 func (mi BaseModulationInfo) String() string {
 	return fmt.Sprintf("MCS: %d, NSS: %d", mi.MCS, mi.NSS)
+}
+
+func (mi BaseModulationInfo) formatRateInfoWithWidth(channelWidth string) string {
+	parts := []string{fmt.Sprintf("MCS %d", mi.MCS), fmt.Sprintf("NSS %d", mi.NSS)}
+	if channelWidth == "" {
+		return strings.Join(parts, " ")
+	}
+
+	parts = append(parts, channelWidth)
+	return strings.Join(parts, " ")
 }
 
 // HTModulationInfo represents modulation information for HT rates.
@@ -259,12 +283,24 @@ func (mi HTModulationInfo) WifiGeneration() string {
 	return "802.11n (WiFi 4)"
 }
 
+func (mi HTModulationInfo) HasShortGI() bool {
+	return mi.ShortGI
+}
+
 func (mi HTModulationInfo) String() string {
-	shortGiString := ""
-	if mi.ShortGI {
-		shortGiString = "Short GI "
+	return fmt.Sprintf("HT-MCS: %d, MCS: %d, NSS: %d, Short GI: %t", mi.HTMCS, mi.MCS, mi.NSS, mi.ShortGI)
+}
+
+func (mi HTModulationInfo) formatRateInfoWithWidth(channelWidth string) string {
+	parts := []string{fmt.Sprintf("MCS %d", mi.HTMCS)}
+	if channelWidth != "" {
+		parts = append(parts, channelWidth)
 	}
-	return fmt.Sprintf("%sHT-MCS: %d, NSS: %d", shortGiString, mi.HTMCS, mi.NSS)
+	if channelWidth != "" && mi.HasShortGI() {
+		parts = append(parts, "short GI")
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // VHTModulationInfo represents modulation information for VHT rates.
@@ -277,12 +313,25 @@ func (mi VHTModulationInfo) WifiGeneration() string {
 	return "802.11ac (WiFi 5)"
 }
 
+func (mi VHTModulationInfo) HasShortGI() bool {
+	return mi.ShortGI
+}
+
 func (mi VHTModulationInfo) String() string {
-	shortGiString := ""
-	if mi.ShortGI {
-		shortGiString = "Short GI "
+	return fmt.Sprintf("VHT-MCS: %d, NSS: %d, Short GI: %t", mi.MCS, mi.NSS, mi.ShortGI)
+}
+
+func (mi VHTModulationInfo) formatRateInfoWithWidth(channelWidth string) string {
+	parts := []string{fmt.Sprintf("VHT-MCS %d", mi.MCS)}
+	if channelWidth != "" {
+		parts = append(parts, channelWidth)
 	}
-	return fmt.Sprintf("%sVHT-MCS: %d, NSS: %d", shortGiString, mi.MCS, mi.NSS)
+	if channelWidth != "" && mi.HasShortGI() {
+		parts = append(parts, "short GI")
+	}
+	parts = append(parts, fmt.Sprintf("VHT-NSS %d", mi.NSS))
+
+	return strings.Join(parts, " ")
 }
 
 type HEModulationInfo struct {
@@ -300,6 +349,23 @@ func (mi HEModulationInfo) String() string {
 	return fmt.Sprintf("HE-MCS: %d, NSS: %d, GI: %d, DCM: %d, RUAlloc: %d", mi.MCS, mi.NSS, mi.GI, mi.DCM, mi.RUAlloc)
 }
 
+func (mi HEModulationInfo) formatRateInfoWithWidth(channelWidth string) string {
+	parts := []string{}
+	if channelWidth != "" {
+		parts = append(parts, channelWidth)
+	}
+
+	parts = append(parts,
+		fmt.Sprintf("HE-MCS %d", mi.MCS),
+		fmt.Sprintf("HE-NSS %d", mi.NSS),
+		fmt.Sprintf("HE-GI %d", mi.GI),
+		fmt.Sprintf("HE-DCM %d", mi.DCM),
+		fmt.Sprintf("HE-RU-ALLOC %d", mi.RUAlloc),
+	)
+
+	return strings.Join(parts, " ")
+}
+
 type EHTModulationInfo struct {
 	BaseModulationInfo
 	GI      int
@@ -312,6 +378,22 @@ func (mi EHTModulationInfo) WifiGeneration() string {
 
 func (mi EHTModulationInfo) String() string {
 	return fmt.Sprintf("EHT-MCS: %d, NSS: %d, GI: %d, RUAlloc: %d", mi.MCS, mi.NSS, mi.GI, mi.RUAlloc)
+}
+
+func (mi EHTModulationInfo) formatRateInfoWithWidth(channelWidth string) string {
+	parts := []string{}
+	if channelWidth != "" {
+		parts = append(parts, channelWidth)
+	}
+
+	parts = append(parts,
+		fmt.Sprintf("EHT-MCS %d", mi.MCS),
+		fmt.Sprintf("EHT-NSS %d", mi.NSS),
+		fmt.Sprintf("EHT-GI %d", mi.GI),
+		fmt.Sprintf("EHT-RU-ALLOC %d", mi.RUAlloc),
+	)
+
+	return strings.Join(parts, " ")
 }
 
 // RateModulationInfoType indicates the type of modulation used for a rate.
@@ -329,7 +411,8 @@ const (
 // rateInfo provides information about the receive or transmit rate of
 // an interface.
 type RateInfo struct {
-	// Bitrate in bits per second.
+	// Bitrate in 100 kbit/s units (nl80211 rate_info convention).
+	// For example, 867 means 86.7 MBit/s.
 	Bitrate int
 
 	// The type of modulation used. Can also be inferred from Modulation.(type)
@@ -346,11 +429,33 @@ func bitrateStr(bitrate int) string {
 	if bitrate > 0 {
 		return fmt.Sprintf("%d.%d MBit/s", bitrate/10, bitrate%10)
 	}
-	return "(unknown) Mbit/s"
+	return "(unknown)"
 }
 
+func iwChannelWidthString(w ChannelWidth) string {
+	return strings.ReplaceAll(strings.ReplaceAll(w.String(), " ", ""), "+", "P")
+}
+
+// String returns the bitrate and modulation details formatted similarly to
+// iw's parse_bitrate output, including iw-style token ordering.
 func (r RateInfo) String() string {
-	return fmt.Sprintf("%s %s %s %s", bitrateStr(r.Bitrate), r.Modulation.WifiGeneration(), r.ChannelWidth.String(), r.Modulation.String())
+	// Keep output intentionally close to iw's parse_bitrate token order.
+	// This looks unusual in places (for example VHT-NSS appearing after width
+	// and optional short GI), but it matches iw-style formatting.
+	parts := []string{bitrateStr(r.Bitrate)}
+	width := iwChannelWidthString(r.ChannelWidth)
+
+	// No modulation details: print bitrate plus channel width only.
+	if r.Modulation == nil {
+		parts = append(parts, width)
+		return strings.Join(parts, " ")
+	}
+
+	if formatted := r.Modulation.formatRateInfoWithWidth(width); formatted != "" {
+		parts = append(parts, formatted)
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // StationInfo contains statistics about a WiFi interface operating in

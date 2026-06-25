@@ -522,12 +522,13 @@ func TestRateModulationInfo_String(t *testing.T) {
 			name: "HT",
 			rm: HTModulationInfo{
 				BaseModulationInfo: BaseModulationInfo{
+					MCS: 5,
 					NSS: 2,
 				},
 				HTMCS:   13,
 				ShortGI: true,
 			},
-			want: "Short GI HT-MCS: 13, NSS: 2",
+			want: "HT-MCS: 13, MCS: 5, NSS: 2, Short GI: true",
 		},
 		{
 			name: "VHT",
@@ -538,7 +539,7 @@ func TestRateModulationInfo_String(t *testing.T) {
 				},
 				ShortGI: true,
 			},
-			want: "Short GI VHT-MCS: 9, NSS: 2",
+			want: "VHT-MCS: 9, NSS: 2, Short GI: true",
 		},
 		{
 			name: "HE",
@@ -592,7 +593,7 @@ func TestRateInfo_String(t *testing.T) {
 					NSS: 2,
 				},
 			},
-			want: "86.7 MBit/s unknown 20 MHz (no HT) MCS: 9, NSS: 2",
+			want: "86.7 MBit/s MCS 9 NSS 2 20MHz(noHT)",
 		},
 		{
 			name: "UnknownBitrate",
@@ -605,7 +606,7 @@ func TestRateInfo_String(t *testing.T) {
 					HTMCS: 13,
 				},
 			},
-			want: "(unknown) Mbit/s 802.11n (WiFi 4) 20 MHz (no HT) HT-MCS: 13, NSS: 2",
+			want: "(unknown) MCS 13 20MHz(noHT)",
 		},
 		{
 			name: "VHT40MHz",
@@ -620,7 +621,7 @@ func TestRateInfo_String(t *testing.T) {
 					ShortGI: true,
 				},
 			},
-			want: "78.0 MBit/s 802.11ac (WiFi 5) 40 MHz Short GI VHT-MCS: 8, NSS: 2",
+			want: "78.0 MBit/s VHT-MCS 8 40MHz short GI VHT-NSS 2",
 		},
 		{
 			name: "HE80MHz",
@@ -637,7 +638,7 @@ func TestRateInfo_String(t *testing.T) {
 					RUAlloc: 106,
 				},
 			},
-			want: "120.1 MBit/s 802.11ax (WiFi 6) 80 MHz HE-MCS: 11, NSS: 2, GI: 1, DCM: 0, RUAlloc: 106",
+			want: "120.1 MBit/s 80MHz HE-MCS 11 HE-NSS 2 HE-GI 1 HE-DCM 0 HE-RU-ALLOC 106",
 		},
 		{
 			name: "EHT320MHz",
@@ -653,7 +654,7 @@ func TestRateInfo_String(t *testing.T) {
 					RUAlloc: 996,
 				},
 			},
-			want: "576.5 MBit/s 802.11be (WiFi 7) 320 MHz EHT-MCS: 13, NSS: 4, GI: 1, RUAlloc: 996",
+			want: "576.5 MBit/s 320MHz EHT-MCS 13 EHT-NSS 4 EHT-GI 1 EHT-RU-ALLOC 996",
 		},
 	}
 

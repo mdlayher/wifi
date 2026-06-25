@@ -669,13 +669,6 @@ func channelWithAttributes(cw ChannelWidth) (attr []netlink.Attribute) {
 	}
 }
 
-type unsupportedRateModulationInfo struct{}
-
-func (unsupportedRateModulationInfo) GetMCS() int            { return -1 }
-func (unsupportedRateModulationInfo) GetNSS() int            { return -1 }
-func (unsupportedRateModulationInfo) WifiGeneration() string { return "unknown" }
-func (unsupportedRateModulationInfo) String() string         { return "unsupported" }
-
 func Test_modulationAttributes(t *testing.T) {
 	tests := []struct {
 		name string
@@ -685,11 +678,6 @@ func Test_modulationAttributes(t *testing.T) {
 		{
 			name: "nil",
 			in:   nil,
-			want: nil,
-		},
-		{
-			name: "unsupported implementation",
-			in:   unsupportedRateModulationInfo{},
 			want: nil,
 		},
 		{
