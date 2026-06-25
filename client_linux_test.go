@@ -636,8 +636,10 @@ func modulationAttributes(rateInfo RateModulationInfo) []netlink.Attribute {
 
 func channelWithAttributes(cw ChannelWidth) (attr []netlink.Attribute) {
 	switch cw {
-	// case ChannelWidth20NoHT:
-	// case ChannelWidth20:
+	case ChannelWidth20NoHT:
+		return attr
+	case ChannelWidth20:
+		return attr
 	case ChannelWidth40:
 		return []netlink.Attribute{{Type: unix.NL80211_RATE_INFO_40_MHZ_WIDTH}}
 	case ChannelWidth80:
