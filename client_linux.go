@@ -1124,7 +1124,7 @@ func ParseStationInfo(b []byte) (*StationInfo, error) {
 
 	var info StationInfo
 	for _, a := range attrs {
-		switch a.Type {
+		switch a.Type &^ netlink.Nested {
 		case unix.NL80211_ATTR_IFINDEX:
 			info.InterfaceIndex = int(binary.NativeEndian.Uint32(a.Data))
 		case unix.NL80211_ATTR_MAC:
@@ -1151,7 +1151,8 @@ func ParseStationInfo(b []byte) (*StationInfo, error) {
 // parseAttributes parses netlink attributes into a StationInfo's fields.
 func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 	for _, a := range attrs {
-		switch a.Type {
+		typ := a.Type &^ netlink.Nested
+		switch typ {
 		case unix.NL80211_STA_INFO_CONNECTED_TIME:
 			// Though nl80211 does not specify, this value appears to be in seconds:
 			// * @NL80211_STA_INFO_CONNECTED_TIME: time since the station is last connected
@@ -1187,7 +1188,7 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 
 			// TODO(mdlayher): return more statistics if they end up being
 			// generally useful
-			switch a.Type {
+			switch typ {
 			case unix.NL80211_STA_INFO_RX_BITRATE:
 				info.ReceiveBitrate = rate.Bitrate
 				info.ReceiveRateInfo = rate
@@ -1200,10 +1201,10 @@ func (info *StationInfo) parseAttributes(attrs []netlink.Attribute) error {
 		// Only use 32-bit counters if the 64-bit counters are not present.
 		// If the 64-bit counters appear later in the slice, they will overwrite
 		// these values.
-		if info.ReceivedBytes == 0 && a.Type == unix.NL80211_STA_INFO_RX_BYTES {
+		if info.ReceivedBytes == 0 && typ == unix.NL80211_STA_INFO_RX_BYTES {
 			info.ReceivedBytes = int(binary.NativeEndian.Uint32(a.Data))
 		}
-		if info.TransmittedBytes == 0 && a.Type == unix.NL80211_STA_INFO_TX_BYTES {
+		if info.TransmittedBytes == 0 && typ == unix.NL80211_STA_INFO_TX_BYTES {
 			info.TransmittedBytes = int(binary.NativeEndian.Uint32(a.Data))
 		}
 	}
