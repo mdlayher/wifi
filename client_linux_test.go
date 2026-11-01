@@ -407,7 +407,12 @@ func TestLinux_clientStationInfoOK(t *testing.T) {
 				t.Fatalf("failed to unmarshal attributes: %v", err)
 			}
 
-			if diff := diffNetlinkAttributes(ifi.idAttrs(), attrs); diff != "" {
+			wantAttrs := []netlink.Attribute{{
+				Type: unix.NL80211_ATTR_IFINDEX,
+				Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
+			}}
+
+			if diff := diffNetlinkAttributes(wantAttrs, attrs); diff != "" {
 				t.Fatalf("unexpected request netlink attributes (-want +got):\n%s", diff)
 			}
 

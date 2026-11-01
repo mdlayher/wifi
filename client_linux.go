@@ -238,11 +238,7 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 		unix.NL80211_CMD_GET_STATION,
 		netlink.Dump,
 		ifi,
-		func(ae *netlink.AttributeEncoder) {
-			if ifi.HardwareAddr != nil {
-				ae.Bytes(unix.NL80211_ATTR_MAC, ifi.HardwareAddr)
-			}
-		},
+		nil,
 	)
 	if err != nil {
 		return nil, err
