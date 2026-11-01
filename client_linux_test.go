@@ -785,7 +785,8 @@ func (s *StationInfo) attributes() []netlink.Attribute {
 			Data: nlenc.Uint32Bytes(uint32(s.InterfaceIndex)),
 		},
 		{
-			Type: unix.NL80211_ATTR_STA_INFO,
+			// Linux 7.3+ sets netlink.Nested on STA_INFO.
+			Type: unix.NL80211_ATTR_STA_INFO | netlink.Nested,
 			Data: mustMarshalAttributes([]netlink.Attribute{
 				{Type: unix.NL80211_STA_INFO_CONNECTED_TIME, Data: nlenc.Uint32Bytes(uint32(s.Connected.Seconds()))},
 				{Type: unix.NL80211_STA_INFO_INACTIVE_TIME, Data: nlenc.Uint32Bytes(uint32(s.Inactive.Seconds() * 1000))},
