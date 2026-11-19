@@ -5,6 +5,7 @@ package wifi
 import (
 	"context"
 	"fmt"
+	"net"
 	"runtime"
 	"time"
 )
@@ -36,3 +37,7 @@ func (*client) SetWriteDeadline(t time.Time) error                   { return er
 func (*client) GetRegulatoryDomain() (*RegulatoryDomain, error)      { return nil, errUnimplemented }
 func (*client) SetRegulatoryRegion(_ string, _ RegulatoryHint) error { return errUnimplemented }
 func (*client) ReloadRegulatoryDatabase() error                      { return errUnimplemented }
+
+func (*client) BSSWithMLD(_ *Interface) (*BSS, net.HardwareAddr, error) {
+	return nil, nil, errUnimplemented
+}

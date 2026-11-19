@@ -2,6 +2,7 @@ package wifi
 
 import (
 	"context"
+	"net"
 	"time"
 )
 
@@ -51,6 +52,14 @@ func (c *Client) Interfaces() ([]*Interface, error) {
 // BSS retrieves the BSS associated with a WiFi interface.
 func (c *Client) BSS(ifi *Interface) (*BSS, error) {
 	return c.c.BSS(ifi)
+}
+
+// BSSWithMLD retrieves the BSS associated with a WiFi interface and its
+// optional AP Multi-Link Device address.
+//
+// The MLD address is nil if the response does not include a six-byte MLD address.
+func (c *Client) BSSWithMLD(ifi *Interface) (*BSS, net.HardwareAddr, error) {
+	return c.c.BSSWithMLD(ifi)
 }
 
 // PHYs returns a list of the system's WiFi devices.
