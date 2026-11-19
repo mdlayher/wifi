@@ -199,7 +199,26 @@ func wpaPassphrase(ssid, psk []byte) []byte {
 
 // BSS requests that nl80211 return the BSS for the specified Interface.
 func (c *client) BSS(ifi *Interface) (*BSS, error) {
-	msgs, err := c.get(
+	msgs, err := c.getBSS(ifi)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseBSS(msgs)
+}
+
+// BSSWithMLD requests the BSS and its optional AP MLD address.
+func (c *client) BSSWithMLD(ifi *Interface) (*BSS, net.HardwareAddr, error) {
+	msgs, err := c.getBSS(ifi)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return parseBSSWithMLD(msgs)
+}
+
+func (c *client) getBSS(ifi *Interface) ([]genetlink.Message, error) {
+	return c.get(
 		unix.NL80211_CMD_GET_SCAN,
 		netlink.Dump,
 		ifi,
@@ -209,11 +228,6 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 			}
 		},
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	return parseBSS(msgs)
 }
 
 // AccessPoints requests that nl80211 return all currently known BSS
@@ -676,10 +690,32 @@ func (ifi *Interface) parseAttributes(attrs []netlink.Attribute) error {
 
 // parseBSS parses a single BSS with a status attribute from nl80211 BSS messages.
 func parseBSS(msgs []genetlink.Message) (*BSS, error) {
+	bss, _, err := parseAssociatedBSS(msgs)
+	return bss, err
+}
+
+func parseBSSWithMLD(msgs []genetlink.Message) (*BSS, net.HardwareAddr, error) {
+	bss, attrs, err := parseAssociatedBSS(msgs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	for _, a := range attrs {
+		if a.Type == unix.NL80211_BSS_MLD_ADDR && len(a.Data) == 6 {
+			return bss, append(net.HardwareAddr(nil), a.Data...), nil
+		}
+	}
+
+	return bss, nil, nil
+}
+
+// parseAssociatedBSS returns the first BSS with a status attribute and the
+// nested attributes from that same BSS.
+func parseAssociatedBSS(msgs []genetlink.Message) (*BSS, []netlink.Attribute, error) {
 	for _, m := range msgs {
 		attrs, err := netlink.UnmarshalAttributes(m.Data)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		for _, a := range attrs {
@@ -689,7 +725,7 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 
 			nattrs, err := netlink.UnmarshalAttributes(a.Data)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
 			// The BSS which is associated with an interface will have a status
@@ -700,14 +736,14 @@ func parseBSS(msgs []genetlink.Message) (*BSS, error) {
 
 			var bss BSS
 			if err := (&bss).parseAttributes(nattrs); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
-			return &bss, nil
+			return &bss, nattrs, nil
 		}
 	}
 
-	return nil, os.ErrNotExist
+	return nil, nil, os.ErrNotExist
 }
 
 func parsePHYs(msgs []genetlink.Message) ([]*PHY, error) {

@@ -229,6 +229,70 @@ func TestLinux_clientBSSOK(t *testing.T) {
 	}
 }
 
+func TestLinux_ClientBSSWithMLD(t *testing.T) {
+	wantBSS := &BSS{
+		BSSID:  net.HardwareAddr{0x02, 0, 0, 0, 0, 1},
+		Status: BSSStatusAssociated,
+	}
+	mld := net.HardwareAddr{0x02, 0, 0, 0, 0, 2}
+	bssMessage := func(attrs ...netlink.Attribute) genetlink.Message {
+		return genetlink.Message{
+			Header: genetlink.Header{Command: unix.NL80211_CMD_NEW_SCAN_RESULTS},
+			Data: mustMarshalAttributes([]netlink.Attribute{{
+				Type: unix.NL80211_ATTR_BSS,
+				Data: mustMarshalAttributes(attrs),
+			}}),
+		}
+	}
+	unassociated := bssMessage(netlink.Attribute{
+		Type: unix.NL80211_BSS_MLD_ADDR,
+		Data: net.HardwareAddr{0x02, 0, 0, 0, 0, 3},
+	})
+
+	tests := []struct {
+		name       string
+		addr, want net.HardwareAddr
+	}{
+		{name: "valid", addr: mld, want: mld},
+		{name: "missing"},
+		{name: "invalid length", addr: mld[:5]},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs := []netlink.Attribute{
+				{Type: unix.NL80211_BSS_BSSID, Data: wantBSS.BSSID},
+				{Type: unix.NL80211_BSS_STATUS, Data: nlenc.Uint32Bytes(uint32(wantBSS.Status))},
+			}
+			if tt.addr != nil {
+				attrs = append(attrs, netlink.Attribute{Type: unix.NL80211_BSS_MLD_ADDR, Data: tt.addr})
+			}
+
+			var requests int
+			c := &Client{c: testClient(t, genltest.CheckRequest(familyID, unix.NL80211_CMD_GET_SCAN, netlink.Request|netlink.Dump,
+				func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
+					requests++
+					return []genetlink.Message{unassociated, bssMessage(attrs...)}, nil
+				},
+			))}
+			t.Cleanup(func() { _ = c.Close() })
+
+			bss, addr, err := c.BSSWithMLD(&Interface{Index: 1})
+			if err != nil {
+				t.Fatalf("BSSWithMLD: %v", err)
+			}
+			if diff := cmp.Diff(wantBSS, bss); diff != "" {
+				t.Errorf("unexpected BSS (-want +got):\n%s", diff)
+			}
+			if diff := cmp.Diff(tt.want, addr); diff != "" {
+				t.Errorf("unexpected MLD address (-want +got):\n%s", diff)
+			}
+			if requests != 1 {
+				t.Errorf("got %d GET_SCAN requests, want 1", requests)
+			}
+		})
+	}
+}
+
 func TestLinux_clientStationInfoMissingAttributeIsNotExist(t *testing.T) {
 	c := testClient(t, func(_ genetlink.Message, _ netlink.Message) ([]genetlink.Message, error) {
 		// One message without station info attribute
